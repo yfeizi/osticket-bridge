@@ -1,0 +1,97 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="ui.css">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header class="topbar">
+    <svg class="logo" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23.6 9.6l-1.2-3.7L20 .8a.4.4 0 0 0-.8 0L16.8 5.9H7.2L4.8.8a.4.4 0 0 0-.8 0L1.6 5.9.4 9.6a.9.9 0 0 0 .3 1L12 19.3l11.3-8.7a.9.9 0 0 0 .3-1z"/></svg>
+    <h1>Create GitLab issue<span class="sub" id="projectName">from this osTicket ticket</span></h1>
+    <button class="icon-btn" id="openOptions" title="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+    </button>
+  </header>
+
+  <main>
+    <div id="notConfigured" class="state hidden">
+      <div class="state-icon">🔑</div>
+      <h3>Connect to GitLab first</h3>
+      <p>Set your GitLab URL, project and personal access token in the settings, then come back to a ticket.</p>
+      <button class="btn primary" id="openOptions2">Open settings</button>
+    </div>
+
+    <div id="notTicket" class="state hidden">
+      <div class="state-icon">🎫</div>
+      <h3>No ticket on this tab</h3>
+      <p>Open a ticket in the osTicket staff panel<br><code>/scp/tickets.php?id=…</code> and click the icon again.</p>
+    </div>
+
+    <div id="form" class="hidden">
+      <section class="card ticket">
+        <div class="ticket-head">
+          <span class="badge" id="tNumber">#—</span>
+          <span class="pill" id="tStatus"></span>
+          <span class="pill" id="tPriority"></span>
+        </div>
+        <div class="ticket-subject" id="tSubject" dir="auto"></div>
+        <div class="ticket-meta">
+          <span id="tUser"></span><span id="tDept"></span><span id="tCreated"></span><span id="tFiles"></span>
+        </div>
+        <div id="duplicate" class="notice warn hidden"></div>
+      </section>
+
+      <section class="card">
+        <h2>Issue</h2>
+        <div class="field">
+          <label for="title">Title</label>
+          <input type="text" id="title" dir="auto">
+        </div>
+        <div class="grid-2">
+          <div class="field">
+            <label for="assignee">Assignee</label>
+            <select id="assignee"><option value="">Loading…</option></select>
+          </div>
+          <div class="field">
+            <label>Visibility</label>
+            <label class="switch" style="margin-top:8px"><input type="checkbox" id="confidential"><span class="track"></span>Confidential</label>
+          </div>
+        </div>
+        <div class="field">
+          <label for="labelFilter">Labels <span class="hint" id="labelHint">loading…</span></label>
+          <input type="text" id="labelFilter" placeholder="Filter labels…">
+          <div id="labelList" class="chips"></div>
+        </div>
+        <div class="field">
+          <label for="description">Description <span class="hint">Markdown</span>
+            <a href="#" id="toggleDesc" class="toggle-link">edit</a></label>
+          <textarea id="description" class="hidden"></textarea>
+          <div id="descPreview" class="desc-preview muted"></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>After creating</h2>
+        <div class="options">
+          <label class="switch"><input type="checkbox" id="upload" checked><span class="track"></span>Upload <b id="fileCount">0</b>&nbsp;file(s) to GitLab</label>
+          <label class="switch"><input type="checkbox" id="postNote" checked><span class="track"></span>Post internal note with the issue link on the ticket</label>
+        </div>
+      </section>
+    </div>
+
+    <div id="result" class="hidden"></div>
+  </main>
+
+  <footer id="footer" class="hidden">
+    <div id="progress" class="progress"></div>
+    <button class="btn primary" id="create">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      <span>Create issue</span>
+    </button>
+  </footer>
+
+  <script src="settings.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

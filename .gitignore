@@ -1,0 +1,14 @@
+# packaged builds
+*.zip
+*.crx
+*.pem
+
+# editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# local notes / secrets (never commit a token)
+*.local.*
+.env

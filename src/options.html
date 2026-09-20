@@ -1,0 +1,102 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>osTicket → GitLab settings</title>
+  <link rel="stylesheet" href="ui.css">
+  <style>
+    main { max-width: 760px; margin: 24px auto; padding: 0 16px 40px; }
+    .topbar { position: sticky; top: 0; z-index: 1; }
+    code { background: var(--line); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+    .actions { display: flex; gap: 10px; align-items: center; margin-top: 16px; }
+    .actions .spacer { flex: 1; }
+    #result { margin-top: 14px; }
+    .placeholders code { cursor: pointer; margin: 2px; display: inline-block; }
+    .placeholders code:hover { background: var(--accent-soft); }
+    textarea#noteBody { min-height: 70px; }
+    .switch-row { display: flex; flex-direction: column; gap: 10px; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <svg class="logo" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23.6 9.6l-1.2-3.7L20 .8a.4.4 0 0 0-.8 0L16.8 5.9H7.2L4.8.8a.4.4 0 0 0-.8 0L1.6 5.9.4 9.6a.9.9 0 0 0 .3 1L12 19.3l11.3-8.7a.9.9 0 0 0 .3-1z"/></svg>
+    <h1>osTicket → GitLab<span class="sub">Extension settings</span></h1>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>GitLab connection</h2>
+      <div class="grid-2">
+        <div class="field">
+          <label for="gitlabUrl">GitLab URL</label>
+          <input type="text" id="gitlabUrl" placeholder="https://gitlab.com or https://gitlab.example.com">
+        </div>
+        <div class="field">
+          <label for="project">Project path or ID</label>
+          <input type="text" id="project" placeholder="group/project or numeric ID">
+        </div>
+      </div>
+      <div class="field">
+        <label for="token">Personal access token <span class="hint">scope <code>api</code></span></label>
+        <input type="password" id="token" placeholder="glpat-…" autocomplete="off">
+        <p class="muted" style="margin:6px 0 0">Create one at <em>GitLab → User settings → Access tokens</em>. It is stored only in this browser's extension storage.</p>
+      </div>
+      <div class="actions">
+        <button class="btn" id="test">Test connection</button>
+        <span class="muted" id="testHint">Asks the browser for access to your GitLab host, then checks the project, labels, members and your user.</span>
+      </div>
+      <div id="result" class="notice hidden"></div>
+    </section>
+
+    <section class="card">
+      <h2>Issue defaults</h2>
+      <div class="field">
+        <label for="labels">Default labels <span class="hint">comma separated — pre-selected when they exist in the project</span></label>
+        <input type="text" id="labels">
+      </div>
+      <div class="field">
+        <label for="titleTemplate">Title template</label>
+        <input type="text" id="titleTemplate">
+      </div>
+      <div class="field">
+        <label for="descriptionTemplate">Description template <span class="hint">Markdown</span></label>
+        <textarea id="descriptionTemplate"></textarea>
+        <p class="muted placeholders" style="margin:6px 0 0">Click to insert:
+          <code>{{number}}</code><code>{{id}}</code><code>{{subject}}</code><code>{{url}}</code><code>{{user}}</code><code>{{email}}</code>
+          <code>{{department}}</code><code>{{status}}</code><code>{{priority}}</code><code>{{created}}</code><code>{{source}}</code>
+          <code>{{helpTopic}}</code><code>{{assigned}}</code><code>{{sla}}</code><code>{{dueDate}}</code><code>{{details}}</code><code>{{message}}</code><code>{{attachments}}</code>
+        </p>
+      </div>
+      <div class="switch-row">
+        <label class="switch"><input type="checkbox" id="quoteMessage"><span class="track"></span>Quote the original message (<code>&gt;</code>) in the description</label>
+        <label class="switch"><input type="checkbox" id="confidential"><span class="track"></span>Create issues as confidential by default</label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Internal note on the ticket</h2>
+      <div class="switch-row" style="margin-bottom:12px">
+        <label class="switch"><input type="checkbox" id="postNote"><span class="track"></span>After creating the issue, post an internal note with the link (on by default in the popup)</label>
+      </div>
+      <div class="field">
+        <label for="noteTitle">Note title</label>
+        <input type="text" id="noteTitle">
+      </div>
+      <div class="field">
+        <label for="noteBody">Note body <span class="hint">HTML — extra placeholders: <code>{{iid}}</code> <code>{{issueUrl}}</code> <code>{{issueTitle}}</code></span></label>
+        <textarea id="noteBody"></textarea>
+      </div>
+    </section>
+
+    <div class="actions">
+      <button class="btn" id="reset">Reset templates</button>
+      <span class="spacer"></span>
+      <span class="muted" id="saved"></span>
+      <button class="btn primary" id="save">Save settings</button>
+    </div>
+  </main>
+
+  <script src="settings.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

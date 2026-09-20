@@ -1,0 +1,58 @@
+/* Popup-specific layout (tokens/components live in ui.css). */
+body { width: 560px; max-height: 600px; display: flex; flex-direction: column; }
+main { padding: 12px; overflow-y: auto; flex: 1; }
+
+/* Empty states */
+.state { text-align: center; padding: 32px 20px; }
+.state-icon { font-size: 36px; margin-bottom: 8px; }
+.state h3 { margin: 0 0 6px; font-size: 15px; }
+.state p { margin: 0 0 14px; color: var(--muted); }
+.state code { background: var(--line); padding: 1px 5px; border-radius: 4px; }
+
+/* Ticket summary card */
+.card.ticket { border-inline-start: 4px solid var(--accent-2); }
+.ticket-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.badge {
+  font-weight: 700; font-size: 12px; padding: 2px 8px; border-radius: 6px;
+  background: var(--accent-soft); color: var(--accent);
+}
+.pill { font-size: 11px; padding: 1px 8px; border-radius: 999px; background: var(--line); color: var(--muted); }
+.pill:empty { display: none; }
+.ticket-subject { font-size: 14px; font-weight: 600; line-height: 1.35; margin-bottom: 6px; }
+.ticket-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); }
+.ticket-meta span:empty { display: none; }
+.ticket-meta span::before { opacity: .7; margin-inline-end: 4px; }
+#tUser::before { content: "👤"; } #tDept::before { content: "🏷"; } #tCreated::before { content: "🕒"; } #tFiles::before { content: "📎"; }
+.ticket #duplicate { margin-top: 10px; }
+
+/* Description: collapsed preview by default, textarea on demand */
+.toggle-link { float: inline-end; font-weight: 400; font-size: 12px; }
+.desc-preview {
+  border: 1px dashed var(--field-line); border-radius: 8px; padding: 8px 10px; font-size: 12px;
+  max-height: 72px; overflow: hidden; white-space: pre-wrap; position: relative; cursor: pointer;
+  font-family: ui-monospace, Consolas, monospace;
+}
+.desc-preview::after {
+  content: ""; position: absolute; inset: auto 0 0 0; height: 28px;
+  background: linear-gradient(transparent, var(--card));
+}
+
+.options { display: flex; flex-direction: column; gap: 10px; }
+
+/* Footer with progress + CTA */
+footer {
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+  border-top: 1px solid var(--line); background: var(--card);
+}
+.progress { flex: 1; font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.progress .spinner { border-color: var(--field-line); border-top-color: var(--accent-2); }
+
+/* Result card */
+.result-card { text-align: center; padding: 22px 16px; }
+.result-card .big { font-size: 40px; line-height: 1; margin-bottom: 8px; }
+.result-card h3 { margin: 0 0 4px; font-size: 15px; }
+.result-card p { margin: 0 0 12px; color: var(--muted); }
+.result-card .btn { margin: 0 4px; }
+.result-card .steps { text-align: start; display: inline-block; margin: 8px auto 0; font-size: 12px; }
+.result-card .steps div { padding: 2px 0; }
+.result-card .steps .ok { color: var(--ok); } .result-card .steps .warn { color: var(--warn); } .result-card .steps .err { color: var(--err); }
