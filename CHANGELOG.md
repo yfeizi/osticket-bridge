@@ -1,6 +1,16 @@
 # Changelog
 
-## 1.4.0
+All notable changes to this project are documented here. Versions follow
+`manifest.json`.
+
+## 1.5.0 — 2026-09-20
+- GitHub support (github.com and GitHub Enterprise): choose the tracker in
+  Settings. Labels, assignees, duplicate search and the link-back note work the
+  same way; attachment uploads and confidential issues are GitLab-only because
+  the GitHub API has no equivalent.
+- Note templates use `{{provider}}` so the wording follows the tracker.
+
+## 1.4.0 — 2026-09-20
 - Removed all hard-coded hosts: osTicket access now uses `activeTab` (only the
   tab you click on), the GitLab origin is requested at runtime from Settings.
 - Popup asks for configuration when the project or token is missing.

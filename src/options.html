@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>osTicket → GitLab settings</title>
+  <title>osTicket → Issue settings</title>
   <link rel="stylesheet" href="ui.css">
   <style>
     main { max-width: 760px; margin: 24px auto; padding: 0 16px 40px; }
@@ -15,35 +15,78 @@
     .placeholders code:hover { background: var(--accent-soft); }
     textarea#noteBody { min-height: 70px; }
     .switch-row { display: flex; flex-direction: column; gap: 10px; }
+    .provider-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    .provider-option {
+      display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer;
+      border: 2px solid var(--field-line); border-radius: 10px; background: var(--field); transition: border-color .15s;
+    }
+    .provider-option:has(input:checked) { border-color: var(--accent-2); background: var(--accent-soft); }
+    .provider-option input { display: none; }
+    .provider-option svg { width: 26px; height: 26px; flex: none; }
+    .provider-option b { display: block; font-size: 13px; }
+    .provider-option small { color: var(--muted); }
   </style>
 </head>
 <body>
   <header class="topbar">
     <svg class="logo" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23.6 9.6l-1.2-3.7L20 .8a.4.4 0 0 0-.8 0L16.8 5.9H7.2L4.8.8a.4.4 0 0 0-.8 0L1.6 5.9.4 9.6a.9.9 0 0 0 .3 1L12 19.3l11.3-8.7a.9.9 0 0 0 .3-1z"/></svg>
-    <h1>osTicket → GitLab<span class="sub">Extension settings</span></h1>
+    <h1>osTicket → GitLab / GitHub<span class="sub">Extension settings</span></h1>
   </header>
 
   <main>
     <section class="card">
-      <h2>GitLab connection</h2>
-      <div class="grid-2">
-        <div class="field">
-          <label for="gitlabUrl">GitLab URL</label>
-          <input type="text" id="gitlabUrl" placeholder="https://gitlab.com or https://gitlab.example.com">
+      <h2>Issue tracker</h2>
+      <div class="provider-picker">
+        <label class="provider-option">
+          <input type="radio" name="provider" value="gitlab">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23.6 9.6l-1.2-3.7L20 .8a.4.4 0 0 0-.8 0L16.8 5.9H7.2L4.8.8a.4.4 0 0 0-.8 0L1.6 5.9.4 9.6a.9.9 0 0 0 .3 1L12 19.3l11.3-8.7a.9.9 0 0 0 .3-1z"/></svg>
+          <span><b>GitLab</b><small>gitlab.com or self-hosted · uploads &amp; confidential issues</small></span>
+        </label>
+        <label class="provider-option">
+          <input type="radio" name="provider" value="github">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+          <span><b>GitHub</b><small>github.com or Enterprise · no attachment uploads (API limit)</small></span>
+        </label>
+      </div>
+
+      <div class="only-gitlab">
+        <div class="grid-2">
+          <div class="field">
+            <label for="gitlabUrl">GitLab URL</label>
+            <input type="text" id="gitlabUrl" placeholder="https://gitlab.com or https://gitlab.example.com">
+          </div>
+          <div class="field">
+            <label for="project">Project path or ID</label>
+            <input type="text" id="project" placeholder="group/project or numeric ID">
+          </div>
         </div>
         <div class="field">
-          <label for="project">Project path or ID</label>
-          <input type="text" id="project" placeholder="group/project or numeric ID">
+          <label for="token">Personal access token <span class="hint">scope <code>api</code></span></label>
+          <input type="password" id="token" placeholder="glpat-…" autocomplete="off">
+          <p class="muted" style="margin:6px 0 0">Create one at <em>GitLab → Preferences → Access tokens</em>. It is stored only in this browser's extension storage.</p>
         </div>
       </div>
-      <div class="field">
-        <label for="token">Personal access token <span class="hint">scope <code>api</code></span></label>
-        <input type="password" id="token" placeholder="glpat-…" autocomplete="off">
-        <p class="muted" style="margin:6px 0 0">Create one at <em>GitLab → User settings → Access tokens</em>. It is stored only in this browser's extension storage.</p>
+
+      <div class="only-github">
+        <div class="grid-2">
+          <div class="field">
+            <label for="githubApiUrl">API URL <span class="hint">Enterprise: <code>https://host/api/v3</code></span></label>
+            <input type="text" id="githubApiUrl" placeholder="https://api.github.com">
+          </div>
+          <div class="field">
+            <label for="githubRepo">Repository</label>
+            <input type="text" id="githubRepo" placeholder="owner/repo">
+          </div>
+        </div>
+        <div class="field">
+          <label for="githubToken">Personal access token <span class="hint">fine-grained: <code>Issues: write</code> · classic: <code>repo</code></span></label>
+          <input type="password" id="githubToken" placeholder="github_pat_… or ghp_…" autocomplete="off">
+          <p class="muted" style="margin:6px 0 0">Create one at <em>GitHub → Settings → Developer settings → Personal access tokens</em>. It is stored only in this browser's extension storage.</p>
+        </div>
       </div>
       <div class="actions">
         <button class="btn" id="test">Test connection</button>
-        <span class="muted" id="testHint">Asks the browser for access to your GitLab host, then checks the project, labels, members and your user.</span>
+        <span class="muted" id="testHint">Asks the browser for access to the API host, then checks the project, labels, assignees and your user.</span>
       </div>
       <div id="result" class="notice hidden"></div>
     </section>
@@ -69,7 +112,7 @@
       </div>
       <div class="switch-row">
         <label class="switch"><input type="checkbox" id="quoteMessage"><span class="track"></span>Quote the original message (<code>&gt;</code>) in the description</label>
-        <label class="switch"><input type="checkbox" id="confidential"><span class="track"></span>Create issues as confidential by default</label>
+        <label class="switch only-gitlab"><input type="checkbox" id="confidential"><span class="track"></span>Create issues as confidential by default</label>
       </div>
     </section>
 

@@ -1,5 +1,12 @@
 // Shared settings + description template helpers (loaded by popup & options).
 
+// Static capabilities per issue tracker. The API-side implementation lives in
+// background.js; this table only drives what the UI offers.
+const PROVIDERS = {
+  gitlab: { label: 'GitLab', uploads: true, confidential: true },
+  github: { label: 'GitHub', uploads: false, confidential: false },
+};
+
 const DEFAULT_TEMPLATE = `## Support ticket #{{number}}
 
 **Subject:** {{subject}}
@@ -18,17 +25,25 @@ const DEFAULT_TEMPLATE = `## Support ticket #{{number}}
 `;
 
 const DEFAULTS = {
+  provider: 'gitlab',
+  // GitLab
   gitlabUrl: 'https://gitlab.com',
   project: '',
   token: '',
+  // GitHub (API base; for GitHub Enterprise use https://<host>/api/v3)
+  githubApiUrl: 'https://api.github.com',
+  githubRepo: '',
+  githubToken: '',
+  // Issue defaults
   labels: '',
   confidential: false,
   titleTemplate: '#{{number}} - {{subject}}',
   descriptionTemplate: DEFAULT_TEMPLATE,
   quoteMessage: true,
+  // Internal note
   postNote: true,
-  noteTitle: 'GitLab issue #{{iid}}',
-  noteBody: '<p>Created GitLab issue <a href="{{issueUrl}}" target="_blank">#{{iid}} — {{issueTitle}}</a></p>',
+  noteTitle: '{{provider}} issue #{{iid}}',
+  noteBody: '<p>Created {{provider}} issue <a href="{{issueUrl}}" target="_blank">#{{iid}} — {{issueTitle}}</a></p>',
 };
 
 function loadSettings() {
@@ -39,6 +54,25 @@ function loadSettings() {
 
 function saveSettings(values) {
   return new Promise((resolve) => chrome.storage.local.set(values, resolve));
+}
+
+const providerMeta = (settings) => PROVIDERS[settings.provider] || PROVIDERS.gitlab;
+
+// Human-readable target ("group/project" or "owner/repo") and whether the
+// selected provider has everything it needs to make API calls.
+function providerTarget(settings) {
+  return settings.provider === 'github' ? settings.githubRepo : settings.project;
+}
+function providerToken(settings) {
+  return settings.provider === 'github' ? settings.githubToken : settings.token;
+}
+function providerBaseUrl(settings) {
+  return settings.provider === 'github'
+    ? settings.githubApiUrl.replace(/\/+$/, '')
+    : settings.gitlabUrl.replace(/\/+$/, '') + '/api/v4';
+}
+function isConfigured(settings) {
+  return Boolean(providerToken(settings) && providerTarget(settings));
 }
 
 function renderTemplate(tpl, ticket, opts = {}) {
@@ -68,10 +102,12 @@ function renderTemplate(tpl, ticket, opts = {}) {
     source: ticket.source || '',
     helpTopic: ticket.helpTopic || '',
     assigned: ticket.assigned || '',
+    sla: ticket.sla || '',
+    dueDate: ticket.dueDate || '',
     details: detailsTable,
     message,
     attachments,
-    ...(opts.extra || {}), // e.g. iid / issueUrl / issueTitle once the issue exists
+    ...(opts.extra || {}), // e.g. provider / iid / issueUrl / issueTitle once the issue exists
   };
 
   return tpl.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, k) => (k in vars ? vars[k] : ''));

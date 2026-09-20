@@ -165,10 +165,31 @@ function wireDescriptionToggle() {
 
 // ---------- main ----------
 
+function applyProvider(settings) {
+  const meta = providerMeta(settings);
+  document.body.dataset.provider = settings.provider;
+  $('logoGitlab').classList.toggle('hidden', settings.provider === 'github');
+  $('logoGithub').classList.toggle('hidden', settings.provider !== 'github');
+  $('headTitle').textContent = `Create ${meta.label} issue`;
+  const target = providerTarget(settings);
+  $('projectName').textContent = target ? `→ ${target}` : 'from this osTicket ticket';
+  $('openIssueLabel').textContent = `Open issue in ${meta.label}`;
+  // Capabilities the tracker lacks are shown disabled with a reason.
+  if (!meta.uploads) {
+    $('upload').checked = false; $('upload').disabled = true;
+    $('uploadHint').textContent = `(not supported by the ${meta.label} API — links are kept)`;
+  }
+  if (!meta.confidential) {
+    $('confidential').checked = false; $('confidential').disabled = true;
+    $('confidentialHint').textContent = '(GitLab only)';
+  }
+  return meta;
+}
+
 async function init() {
   const settings = await loadSettings();
-  $('projectName').textContent = settings.project ? `→ ${settings.project}` : 'from this osTicket ticket';
-  if (!settings.token || !settings.project) { show('notConfigured'); return; }
+  const meta = applyProvider(settings);
+  if (!isConfigured(settings)) { show('notConfigured'); return; }
 
   const tab = await activeTicketTab();
   const ticket = tab && (await askTab(tab, { type: 'GET_TICKET' }));
@@ -176,14 +197,16 @@ async function init() {
 
   fillTicketCard(ticket);
   $('title').value = renderTemplate(settings.titleTemplate, ticket);
-  $('confidential').checked = !!settings.confidential;
   const description = renderTemplate(settings.descriptionTemplate, ticket, { quoteMessage: settings.quoteMessage });
   $('description').value = description;
   $('descPreview').textContent = description;
   wireDescriptionToggle();
   $('fileCount').textContent = ticket.attachments.length;
-  $('upload').disabled = ticket.attachments.length === 0;
-  $('upload').checked = ticket.attachments.length > 0;
+  if (meta.uploads) {
+    $('upload').disabled = ticket.attachments.length === 0;
+    $('upload').checked = ticket.attachments.length > 0;
+  }
+  if (meta.confidential) $('confidential').checked = !!settings.confidential;
   $('postNote').checked = !!settings.postNote;
   show('form'); show('footer');
 
@@ -248,7 +271,7 @@ async function init() {
         title: issueTitle,
         description: $('description').value,
         labels: selectedLabels(),
-        assigneeId: Number($('assignee').value) || null,
+        assigneeId: $('assignee').value || null, // numeric id (GitLab) or login (GitHub)
         confidential: $('confidential').checked,
       },
     });
@@ -266,7 +289,7 @@ async function init() {
     // 3. internal note on the ticket
     if ($('postNote').checked) {
       setProgress('Posting internal note on the ticket…');
-      const extra = { iid: r.iid, issueUrl: r.url, issueTitle };
+      const extra = { provider: meta.label, iid: r.iid, issueUrl: r.url, issueTitle };
       const note = await askTab(tab, {
         type: 'POST_NOTE',
         title: renderTemplate(settings.noteTitle, ticket, { extra }),
@@ -280,7 +303,7 @@ async function init() {
     setProgress('');
     show('form', false); show('footer', false);
     showResult('ok', `Issue #${r.iid} created`,
-      `<a class="btn primary" href="${r.url}" target="_blank">Open issue in GitLab</a>`, steps);
+      `<a class="btn primary" href="${r.url}" target="_blank">${$('openIssueLabel').textContent}</a>`, steps);
   });
 }
 

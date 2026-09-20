@@ -28,6 +28,19 @@
   }
 }
 
+/* GitHub palette when that provider is selected (body[data-provider]) */
+body[data-provider="github"] {
+  --accent: #24292f; --accent-2: #444c56; --accent-3: #6e7781; --accent-soft: #eaeef2;
+}
+@media (prefers-color-scheme: dark) {
+  body[data-provider="github"] {
+    --accent: #6e7681; --accent-2: #484f58; --accent-3: #30363d; --accent-soft: #21262d;
+  }
+  body[data-provider="github"] a { color: #8b949e; }
+}
+body[data-provider="github"] .btn.primary { box-shadow: 0 4px 12px rgba(36,41,47,.3); }
+body[data-provider="github"] .badge { color: var(--text); }
+
 * { box-sizing: border-box; }
 body {
   margin: 0; background: var(--bg); color: var(--text);

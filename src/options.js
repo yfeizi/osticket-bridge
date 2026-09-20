@@ -1,9 +1,15 @@
 const $ = (id) => document.getElementById(id);
-const FIELDS = ['gitlabUrl', 'project', 'token', 'labels', 'titleTemplate', 'descriptionTemplate', 'noteTitle', 'noteBody'];
+const FIELDS = [
+  'gitlabUrl', 'project', 'token',
+  'githubApiUrl', 'githubRepo', 'githubToken',
+  'labels', 'titleTemplate', 'descriptionTemplate', 'noteTitle', 'noteBody',
+];
 const CHECKS = ['confidential', 'quoteMessage', 'postNote'];
 
+const selectedProvider = () => (document.querySelector('input[name=provider]:checked') || {}).value || 'gitlab';
+
 function read() {
-  const out = {};
+  const out = { provider: selectedProvider() };
   FIELDS.forEach((f) => (out[f] = $(f).value.trim()));
   CHECKS.forEach((f) => (out[f] = $(f).checked));
   return out;
@@ -12,7 +18,19 @@ function read() {
 function fill(s) {
   FIELDS.forEach((f) => ($(f).value = s[f] || ''));
   CHECKS.forEach((f) => ($(f).checked = !!s[f]));
+  const radio = document.querySelector(`input[name=provider][value="${s.provider}"]`) || document.querySelector('input[name=provider]');
+  radio.checked = true;
+  applyProvider();
 }
+
+// Show only the fields that belong to the selected tracker.
+function applyProvider() {
+  const p = selectedProvider();
+  document.body.dataset.provider = p;
+  document.querySelectorAll('.only-gitlab').forEach((el) => el.classList.toggle('hidden', p !== 'gitlab'));
+  document.querySelectorAll('.only-github').forEach((el) => el.classList.toggle('hidden', p !== 'github'));
+}
+document.querySelectorAll('input[name=provider]').forEach((r) => r.addEventListener('change', applyProvider));
 
 function notice(kind, html) {
   const el = $('result');
@@ -22,12 +40,12 @@ function notice(kind, html) {
 
 loadSettings().then(fill);
 
-// Ask the browser for access to the configured GitLab origin. Must be called
+// Ask the browser for access to the configured API origin. Must be called
 // synchronously from a user gesture (click), so no `await` before it.
-function requestGitlabPermission(gitlabUrl) {
+function requestApiPermission(settings) {
   let origin;
-  try { origin = new URL(gitlabUrl).origin + '/*'; }
-  catch { return Promise.resolve({ ok: false, error: `Invalid GitLab URL: "${gitlabUrl}"` }); }
+  try { origin = new URL(providerBaseUrl(settings)).origin + '/*'; }
+  catch { return Promise.resolve({ ok: false, error: 'Invalid API URL.' }); }
   return chrome.permissions.request({ origins: [origin] })
     .then((granted) => (granted ? { ok: true } : { ok: false, error: `Access to ${origin} was not granted.` }))
     .catch((e) => ({ ok: false, error: e.message || String(e) }));
@@ -35,9 +53,9 @@ function requestGitlabPermission(gitlabUrl) {
 
 $('save').addEventListener('click', async () => {
   const settings = read();
-  const perm = await requestGitlabPermission(settings.gitlabUrl);
+  const perm = await requestApiPermission(settings);
   await saveSettings(settings);
-  $('saved').textContent = perm.ok ? 'Saved ✔' : 'Saved — but no GitLab access granted';
+  $('saved').textContent = perm.ok ? 'Saved ✔' : `Saved — but no ${providerMeta(settings).label} access granted`;
   if (!perm.ok) notice('warn', `✖ ${perm.error}`);
   setTimeout(() => ($('saved').textContent = ''), 3000);
 });
@@ -59,7 +77,7 @@ document.querySelectorAll('.placeholders code').forEach((c) => {
 $('test').addEventListener('click', async () => {
   notice('muted', 'Testing…');
   const settings = read();
-  const perm = await requestGitlabPermission(settings.gitlabUrl);
+  const perm = await requestApiPermission(settings);
   if (!perm.ok) return notice('error', `✖ ${perm.error}`);
   chrome.runtime.sendMessage({ type: 'TEST_CONNECTION', settings }, (r) => {
     if (!r || !r.ok) return notice('error', `✖ ${r ? r.error : 'No response'}`);
