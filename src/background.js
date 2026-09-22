@@ -111,6 +111,30 @@ const gitlab = {
     });
     return { iid: c.iid, url: c.web_url };
   },
+  async defaultBranch(s) {
+    const { data: p } = await call(this, s, this.project(s));
+    return p.default_branch;
+  },
+  async createBranch(s, name, ref) {
+    const { data: b } = await call(this, s, `${this.project(s)}/repository/branches?branch=${encodeURIComponent(name)}&ref=${encodeURIComponent(ref)}`, { method: 'POST' });
+    return { name: b.name, url: b.web_url };
+  },
+  // GitLab happily opens an MR with no commits ("Draft:" title marks it a draft).
+  async createMergeRequest(s, mr) {
+    const { data: m } = await call(this, s, `${this.project(s)}/merge_requests`, {
+      method: 'POST',
+      body: {
+        source_branch: mr.branch,
+        target_branch: mr.target,
+        title: `Draft: ${mr.title}`,
+        description: mr.description,
+        assignee_id: mr.assigneeId ? Number(mr.assigneeId) : undefined,
+        labels: mr.labels || undefined,
+        remove_source_branch: true,
+      },
+    });
+    return { iid: m.iid, url: m.web_url, draft: true };
+  },
 };
 
 const github = {
@@ -171,6 +195,43 @@ const github = {
     });
     return { iid: c.number, url: c.html_url };
   },
+  async defaultBranch(s) {
+    const { data: r } = await call(this, s, this.repo(s));
+    return r.default_branch;
+  },
+  // GitHub rejects a PR with zero commits between head and base, so the new
+  // branch gets one empty commit (same tree as the base) via the Git Data API.
+  async createBranch(s, name, ref) {
+    const repo = this.repo(s);
+    const { data: base } = await call(this, s, `${repo}/git/ref/heads/${encodeURIComponent(ref)}`);
+    const baseSha = base.object.sha;
+    const { data: baseCommit } = await call(this, s, `${repo}/git/commits/${baseSha}`);
+    const { data: commit } = await call(this, s, `${repo}/git/commits`, {
+      method: 'POST',
+      body: { message: `Start work on ${name}`, tree: baseCommit.tree.sha, parents: [baseSha] },
+    });
+    await call(this, s, `${repo}/git/refs`, { method: 'POST', body: { ref: `refs/heads/${name}`, sha: commit.sha } });
+    const web = (await this.test(s)).webUrl;
+    return { name, url: `${web}/tree/${name}` };
+  },
+  async createMergeRequest(s, mr) {
+    const repo = this.repo(s);
+    const body = { title: mr.title, head: mr.branch, base: mr.target, body: mr.description, draft: true };
+    let pr, draft = true;
+    try {
+      pr = (await call(this, s, `${repo}/pulls`, { method: 'POST', body })).data;
+    } catch (e) {
+      // Draft PRs need a plan that supports them; fall back to a regular PR.
+      if (!/draft/i.test(e.message)) throw e;
+      draft = false;
+      pr = (await call(this, s, `${repo}/pulls`, { method: 'POST', body: { ...body, draft: false } })).data;
+    }
+    // Assignees/labels live on the issue side of a PR; best effort.
+    if (mr.assigneeId) {
+      await call(this, s, `${repo}/issues/${pr.number}/assignees`, { method: 'POST', body: { assignees: [mr.assigneeId] } }).catch(() => {});
+    }
+    return { iid: pr.number, url: pr.html_url, draft };
+  },
 };
 
 const PROVIDERS = { gitlab, github };
@@ -230,6 +291,23 @@ const handlers = {
     const { description, failures } = await uploadAttachments(p, settings, issue.description, files);
     const created = await p.createIssue(settings, { ...issue, description });
     return { ok: true, ...created, failures };
+  },
+
+  // Branch off the default branch and open a draft MR/PR that closes the issue.
+  // Runs after CREATE_ISSUE so a failure here never loses the issue.
+  CREATE_MR: async ({ settings, branch, issue, ticketUrl, assigneeId, labels }) => {
+    const p = providerOf(settings);
+    const target = await p.defaultBranch(settings);
+    const created = await p.createBranch(settings, branch, target);
+    const mr = await p.createMergeRequest(settings, {
+      branch: created.name,
+      target,
+      title: issue.title,
+      description: `Closes #${issue.iid}\n\nosTicket: ${ticketUrl}`,
+      assigneeId,
+      labels,
+    });
+    return { ok: true, branch: created, target, ...mr };
   },
 };
 

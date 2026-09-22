@@ -8,7 +8,9 @@ GitHub issue** in one click:
   original message and requester details), **assignee** and **labels**
 - **uploads the ticket's screenshots and attachments** into the issue, so it is
   self-contained (osTicket file links are signed and expire)
-- **posts an internal note** with the issue link back on the ticket
+- optionally **creates a branch and a draft merge request / pull request** for
+  the issue, with an editable branch name derived from the subject
+- **posts an internal note** with the issue and MR links back on the ticket
 - warns you if an issue already references the ticket number
 - works with gitlab.com, self-hosted GitLab, github.com and GitHub Enterprise;
   no server component
@@ -39,7 +41,7 @@ Until it is published in a store, load it unpacked:
    |---|---|---|
    | URL | `https://gitlab.com` or `https://gitlab.example.com` | API URL: `https://api.github.com` (Enterprise: `https://host/api/v3`) |
    | Target | project path `group/project` or numeric ID | repository `owner/repo` |
-   | Token | *Preferences → Access tokens*, scope **`api`** | *Settings → Developer settings → Personal access tokens*; fine-grained with **Issues: read & write** (+ Metadata), or classic **`repo`** |
+   | Token | *Preferences → Access tokens*, scope **`api`** | *Settings → Developer settings → Personal access tokens*; fine-grained with **Issues, Contents, Pull requests: read & write** (+ Metadata), or classic **`repo`** |
 
 4. Click **Test connection**. The browser asks once for permission to access
    that API host; then the page reports the project, labels, assignees and
@@ -54,14 +56,20 @@ Until it is published in a store, load it unpacked:
 | Prefilled issue, labels, assignee, duplicate check, link-back note | ✔ | ✔ |
 | Upload attachments / screenshots into the issue | ✔ | ✖ — the GitHub REST API has no attachment upload endpoint; the original osTicket links are kept |
 | Confidential issues | ✔ | ✖ — not a GitHub concept |
+| Branch + draft merge/pull request | ✔ MR opened with no commits | ✔ an empty commit is added first (a PR needs one); draft falls back to a regular PR on plans without drafts |
 
 ## Use
 
 1. Open a ticket in the osTicket **staff panel** (`/scp/tickets.php?id=…`).
 2. Click the extension icon. Review the prefilled issue: assignee is matched
    from osTicket's *Assigned To*, labels are the project's existing labels.
-3. Keep **Upload files** and **Post internal note** on as needed, then
-   **Create issue**.
+3. Keep **Upload files** and **Post internal note** on as needed.
+4. Optionally turn on **Create branch and draft merge request**: the branch
+   name is prefilled as `ticket-<number>-<english-slug>` and can be edited
+   (subjects in non-Latin scripts give just `ticket-<number>` — add a few
+   English words). The branch is cut from the default branch and the draft
+   MR/PR's description says `Closes #<issue>`, so merging closes the issue.
+5. **Create issue**. The result card lists every step with links.
 
 ## Permissions & privacy
 
@@ -83,12 +91,16 @@ placeholders:
 ```
 {{number}} {{id}} {{subject}} {{url}} {{user}} {{email}} {{department}}
 {{status}} {{priority}} {{created}} {{source}} {{helpTopic}} {{assigned}}
-{{sla}} {{dueDate}} {{details}} {{message}} {{attachments}}
+{{sla}} {{dueDate}} {{slug}} {{details}} {{message}} {{attachments}}
 ```
 
 `{{details}}` renders a Markdown table of every field in the ticket-info panel
-(so custom fields are included even if they have no dedicated placeholder). The
-note template additionally gets `{{provider}}`, `{{iid}}`, `{{issueUrl}}` and `{{issueTitle}}`.
+(so custom fields are included even if they have no dedicated placeholder).
+`{{slug}}` is the subject reduced to English words (`fix-login-page-crash`).
+The note template additionally gets `{{provider}}`, `{{iid}}`, `{{issueUrl}}`,
+`{{issueTitle}}` and `{{mr}}` (a line linking the MR/PR, empty when none was
+created). The branch template may also use `{{iid}}`, substituted once the
+issue exists.
 
 ## How it works
 

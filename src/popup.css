@@ -56,3 +56,8 @@ footer {
 .result-card .steps { text-align: start; display: inline-block; margin: 8px auto 0; font-size: 12px; }
 .result-card .steps div { padding: 2px 0; }
 .result-card .steps .ok { color: var(--ok); } .result-card .steps .warn { color: var(--warn); } .result-card .steps .err { color: var(--err); }
+
+/* Branch name under the MR toggle */
+.branch-field { margin: -2px 0 0 42px; }
+.branch-field input { font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+.branch-field .hint.warn { color: var(--warn); }

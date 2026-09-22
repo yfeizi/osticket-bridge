@@ -3,8 +3,8 @@
 // Static capabilities per issue tracker. The API-side implementation lives in
 // background.js; this table only drives what the UI offers.
 const PROVIDERS = {
-  gitlab: { label: 'GitLab', uploads: true, confidential: true },
-  github: { label: 'GitHub', uploads: false, confidential: false },
+  gitlab: { label: 'GitLab', uploads: true, confidential: true, mr: 'merge request', mrAbbr: 'MR', mrRef: '!' },
+  github: { label: 'GitHub', uploads: false, confidential: false, mr: 'pull request', mrAbbr: 'PR', mrRef: '#' },
 };
 
 const DEFAULT_TEMPLATE = `## Support ticket #{{number}}
@@ -40,11 +40,43 @@ const DEFAULTS = {
   titleTemplate: '#{{number}} - {{subject}}',
   descriptionTemplate: DEFAULT_TEMPLATE,
   quoteMessage: true,
+  // Branch + draft merge/pull request
+  createMr: false,
+  branchTemplate: 'ticket-{{number}}-{{slug}}',
   // Internal note
   postNote: true,
   noteTitle: '{{provider}} issue #{{iid}}',
-  noteBody: '<p>Created {{provider}} issue <a href="{{issueUrl}}" target="_blank">#{{iid}} — {{issueTitle}}</a></p>',
+  noteBody: '<p>Created {{provider}} issue <a href="{{issueUrl}}" target="_blank">#{{iid}} — {{issueTitle}}</a></p>{{mr}}',
 };
+
+// "Fix login page" -> "fix-login-page". Only ASCII letters/digits survive, so a
+// subject in another script yields an empty slug (the user then types one).
+function slugify(text, maxWords = 6) {
+  return (text || '')
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '')      // strip diacritics
+    .toLowerCase()
+    .replace(/^#?\d{4,}\s*[-:–]\s*/, '')  // drop a leading "#370140 - "
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+    .slice(0, maxWords)
+    .join('-');
+}
+
+// Make a string a valid git branch name (git check-ref-format rules, roughly).
+function sanitizeBranch(name) {
+  return (name || '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/[~^:?*[\]\\\x00-\x1f\x7f]/g, '')
+    .replace(/\.\.+/g, '.')
+    .replace(/@\{/g, '@')
+    .replace(/\/{2,}/g, '/')
+    .replace(/-{2,}/g, '-')
+    .replace(/\/-|-\//g, '/')
+    .replace(/(^[-./]+)|([-./]+$)|(\.lock$)/g, '')
+    .slice(0, 100);
+}
 
 function loadSettings() {
   return new Promise((resolve) => {
@@ -104,6 +136,7 @@ function renderTemplate(tpl, ticket, opts = {}) {
     assigned: ticket.assigned || '',
     sla: ticket.sla || '',
     dueDate: ticket.dueDate || '',
+    slug: slugify(ticket.subject),
     details: detailsTable,
     message,
     attachments,

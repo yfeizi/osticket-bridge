@@ -163,6 +163,28 @@ function wireDescriptionToggle() {
   $('descPreview').addEventListener('click', open);
 }
 
+// Branch name: prefilled from the template (ticket number + English slug of the
+// subject), always editable. `{{iid}}` is left for substitution after the issue
+// exists. A subject in a non-Latin script gives an empty slug — say so.
+function wireBranchField(settings, ticket, meta) {
+  const cb = $('createMr');
+  cb.checked = !!settings.createMr;
+  const prefill = () => {
+    if ($('branch').value) return;
+    const name = renderTemplate(settings.branchTemplate, ticket, { extra: { iid: '{{iid}}' } });
+    $('branch').value = sanitizeBranch(name);
+    if (!slugify(ticket.subject)) {
+      $('branchHint').textContent = 'subject is not in Latin script — add a short English description';
+      $('branchHint').classList.add('warn');
+    }
+  };
+  const sync = () => { show('branchField', cb.checked); if (cb.checked) prefill(); };
+  cb.addEventListener('change', sync);
+  $('branch').addEventListener('blur', () => { $('branch').value = sanitizeBranch($('branch').value); });
+  $('branchHint').textContent = `from the default branch · draft ${meta.mr}`;
+  sync();
+}
+
 // ---------- main ----------
 
 function applyProvider(settings) {
@@ -174,6 +196,7 @@ function applyProvider(settings) {
   const target = providerTarget(settings);
   $('projectName').textContent = target ? `→ ${target}` : 'from this osTicket ticket';
   $('openIssueLabel').textContent = `Open issue in ${meta.label}`;
+  $('mrLabel').textContent = meta.mr;
   // Capabilities the tracker lacks are shown disabled with a reason.
   if (!meta.uploads) {
     $('upload').checked = false; $('upload').disabled = true;
@@ -208,6 +231,7 @@ async function init() {
   }
   if (meta.confidential) $('confidential').checked = !!settings.confidential;
   $('postNote').checked = !!settings.postNote;
+  wireBranchField(settings, ticket, meta);
   show('form'); show('footer');
 
   // Labels + members come from GitLab so only *existing* labels can be sent
@@ -286,10 +310,33 @@ async function init() {
     (r.failures || []).forEach((f) => steps.push({ kind: 'warn', text: `Upload failed, link kept: ${esc(f)}` }));
     if (files.length && !(r.failures || []).length) steps.push({ kind: 'ok', text: `${files.length} file(s) uploaded` });
 
-    // 3. internal note on the ticket
+    // 3. branch + draft merge/pull request (optional; failure never loses the issue)
+    let mrHtml = '';
+    if ($('createMr').checked) {
+      const branch = sanitizeBranch($('branch').value.replace(/\{\{\s*iid\s*\}\}/g, String(r.iid)));
+      setProgress(`Creating branch ${branch} and draft ${meta.mr}…`);
+      const m = await send({
+        type: 'CREATE_MR',
+        settings,
+        branch,
+        issue: { iid: r.iid, title: issueTitle },
+        ticketUrl: ticket.url,
+        assigneeId: $('assignee').value || null,
+        labels: selectedLabels(),
+      });
+      if (m && m.ok) {
+        steps.push({ kind: 'ok', text: `Branch <a href="${m.branch.url}" target="_blank"><code>${esc(m.branch.name)}</code></a> created from <code>${esc(m.target)}</code>` });
+        steps.push({ kind: m.draft ? 'ok' : 'warn', text: `${m.draft ? 'Draft ' : ''}${meta.mr} <a href="${m.url}" target="_blank">${meta.mrRef}${m.iid}</a> created${m.draft ? '' : ' (draft not supported on this plan)'}` });
+        mrHtml = `<p>Draft ${meta.mr}: <a href="${m.url}" target="_blank">${meta.mrRef}${m.iid}</a> (branch <code>${esc(m.branch.name)}</code>)</p>`;
+      } else {
+        steps.push({ kind: 'err', text: `Branch/${meta.mrAbbr} failed: ${esc(m ? m.error : 'no response')}` });
+      }
+    }
+
+    // 4. internal note on the ticket
     if ($('postNote').checked) {
       setProgress('Posting internal note on the ticket…');
-      const extra = { provider: meta.label, iid: r.iid, issueUrl: r.url, issueTitle };
+      const extra = { provider: meta.label, iid: r.iid, issueUrl: r.url, issueTitle, mr: mrHtml };
       const note = await askTab(tab, {
         type: 'POST_NOTE',
         title: renderTemplate(settings.noteTitle, ticket, { extra }),

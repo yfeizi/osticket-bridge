@@ -79,7 +79,7 @@
           </div>
         </div>
         <div class="field">
-          <label for="githubToken">Personal access token <span class="hint">fine-grained: <code>Issues: write</code> · classic: <code>repo</code></span></label>
+          <label for="githubToken">Personal access token <span class="hint">fine-grained: <code>Issues</code>, <code>Contents</code>, <code>Pull requests</code>: write · classic: <code>repo</code></span></label>
           <input type="password" id="githubToken" placeholder="github_pat_… or ghp_…" autocomplete="off">
           <p class="muted" style="margin:6px 0 0">Create one at <em>GitHub → Settings → Developer settings → Personal access tokens</em>. It is stored only in this browser's extension storage.</p>
         </div>
@@ -117,6 +117,18 @@
     </section>
 
     <section class="card">
+      <h2>Branch &amp; draft merge / pull request</h2>
+      <div class="switch-row" style="margin-bottom:12px">
+        <label class="switch"><input type="checkbox" id="createMr"><span class="track"></span>Turn on "Create branch and draft merge request" by default in the popup</label>
+      </div>
+      <div class="field">
+        <label for="branchTemplate">Branch name template <span class="hint"><code>{{slug}}</code> = English words of the subject · <code>{{iid}}</code> = issue number · always editable in the popup</span></label>
+        <input type="text" id="branchTemplate" spellcheck="false">
+        <p class="muted" style="margin:6px 0 0">The branch is created from the project's default branch; the merge request is opened as a draft with "Closes #issue" in its description. On GitHub an empty commit is added because a pull request cannot be opened on an identical branch.</p>
+      </div>
+    </section>
+
+    <section class="card">
       <h2>Internal note on the ticket</h2>
       <div class="switch-row" style="margin-bottom:12px">
         <label class="switch"><input type="checkbox" id="postNote"><span class="track"></span>After creating the issue, post an internal note with the link (on by default in the popup)</label>
@@ -126,7 +138,7 @@
         <input type="text" id="noteTitle">
       </div>
       <div class="field">
-        <label for="noteBody">Note body <span class="hint">HTML — extra placeholders: <code>{{iid}}</code> <code>{{issueUrl}}</code> <code>{{issueTitle}}</code></span></label>
+        <label for="noteBody">Note body <span class="hint">HTML — extra placeholders: <code>{{iid}}</code> <code>{{issueUrl}}</code> <code>{{issueTitle}}</code> <code>{{mr}}</code> (merge-request line, empty if none)</span></label>
         <textarea id="noteBody"></textarea>
       </div>
     </section>

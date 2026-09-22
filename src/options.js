@@ -2,9 +2,9 @@ const $ = (id) => document.getElementById(id);
 const FIELDS = [
   'gitlabUrl', 'project', 'token',
   'githubApiUrl', 'githubRepo', 'githubToken',
-  'labels', 'titleTemplate', 'descriptionTemplate', 'noteTitle', 'noteBody',
+  'labels', 'titleTemplate', 'descriptionTemplate', 'branchTemplate', 'noteTitle', 'noteBody',
 ];
-const CHECKS = ['confidential', 'quoteMessage', 'postNote'];
+const CHECKS = ['confidential', 'quoteMessage', 'postNote', 'createMr'];
 
 const selectedProvider = () => (document.querySelector('input[name=provider]:checked') || {}).value || 'gitlab';
 
@@ -61,7 +61,7 @@ $('save').addEventListener('click', async () => {
 });
 
 $('reset').addEventListener('click', () => {
-  ['titleTemplate', 'descriptionTemplate', 'noteTitle', 'noteBody'].forEach((f) => ($(f).value = DEFAULTS[f]));
+  ['titleTemplate', 'descriptionTemplate', 'branchTemplate', 'noteTitle', 'noteBody'].forEach((f) => ($(f).value = DEFAULTS[f]));
 });
 
 // Click a placeholder chip to insert it at the cursor of the description template.

@@ -3,6 +3,16 @@
 All notable changes to this project are documented here. Versions follow
 `manifest.json`.
 
+## 1.6.0 — 2026-09-22
+- Optional branch + draft merge request / pull request per issue. Off by
+  default; toggle it in the popup (or make it the default in Settings). The
+  branch name comes from a template (`ticket-{{number}}-{{slug}}`, slug = English
+  words of the subject) and is always editable before creating.
+- GitLab: branch from the default branch and a `Draft:` MR that closes the issue.
+  GitHub: same, plus an empty commit (a PR needs at least one), draft PR with a
+  fallback to a regular PR on plans without drafts.
+- The internal note gets `{{mr}}` (a line with the MR/PR link, empty if none).
+
 ## 1.5.0 — 2026-09-20
 - GitHub support (github.com and GitHub Enterprise): choose the tracker in
   Settings. Labels, assignees, duplicate search and the link-back note work the
