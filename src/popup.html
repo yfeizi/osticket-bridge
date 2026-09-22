@@ -81,7 +81,10 @@
           <label class="switch"><input type="checkbox" id="createMr"><span class="track"></span>Create branch and draft <span id="mrLabel">merge request</span></label>
           <div id="branchField" class="field branch-field hidden">
             <label for="branch">Branch name <span class="hint" id="branchHint">from the default branch</span></label>
-            <input type="text" id="branch" spellcheck="false" placeholder="ticket-123456-short-english-title">
+            <div class="branch-row">
+              <input type="text" id="branch" spellcheck="false" placeholder="ticket-123456-short-english-title">
+              <button class="btn small" id="suggestBranch" title="Translate the subject to English and build the branch name from it">✨ Suggest English name</button>
+            </div>
           </div>
         </div>
       </section>
@@ -99,6 +102,7 @@
   </footer>
 
   <script src="settings.js"></script>
+  <script src="translate.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

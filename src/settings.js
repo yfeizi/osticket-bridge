@@ -43,6 +43,13 @@ const DEFAULTS = {
   // Branch + draft merge/pull request
   createMr: false,
   branchTemplate: 'ticket-{{number}}-{{slug}}',
+  // English branch-name suggestions. Chrome's on-device Translator is always
+  // tried first; this picks the online fallback (off = none).
+  translateService: 'off', // off | mymemory | libre
+  translateEmail: '',      // MyMemory: raises the free quota from 5k to 50k chars/day
+  libreUrl: '',
+  libreKey: '',
+  sourceLang: 'auto',      // ISO code to force the source language, or "auto"
   // Internal note
   postNote: true,
   noteTitle: '{{provider}} issue #{{iid}}',
@@ -61,6 +68,27 @@ function slugify(text, maxWords = 6) {
     .filter(Boolean)
     .slice(0, maxWords)
     .join('-');
+}
+
+// Guess the source language from the script. Good enough to pick a MyMemory
+// language pair; Chrome's LanguageDetector overrides it when available.
+function detectLang(text) {
+  const t = text || '';
+  if (/[؀-ۿ]/.test(t)) {
+    // Persian and Arabic share a script; Persian-only letters (پ چ ژ گ ی ک)
+    // vs Arabic-only ones (ي ك ة) tell them apart.
+    const fa = (t.match(/[پچژگیک]/g) || []).length;
+    const ar = (t.match(/[يكة]/g) || []).length;
+    return fa > ar ? 'fa' : 'ar';
+  }
+  if (/[Ѐ-ӿ]/.test(t)) return 'ru';
+  if (/[֐-׿]/.test(t)) return 'he';
+  if (/[฀-๿]/.test(t)) return 'th';
+  if (/[぀-ヿ]/.test(t)) return 'ja';
+  if (/[가-힯]/.test(t)) return 'ko';
+  if (/[一-鿿]/.test(t)) return 'zh';
+  if (/[a-z]/i.test(t)) return 'en';
+  return 'auto';
 }
 
 // Make a string a valid git branch name (git check-ref-format rules, roughly).

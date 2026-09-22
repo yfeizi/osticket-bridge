@@ -129,6 +129,43 @@
     </section>
 
     <section class="card">
+      <h2>English branch names</h2>
+      <p class="muted" style="margin:0 0 12px">When a subject is not in Latin script, <b>Suggest English name</b> in the popup translates it. Chrome's on-device translator (Chrome 138+, offline, private) is always tried first; choose what to use when it is not available. Online services receive the ticket subject.</p>
+      <div class="grid-2">
+        <div class="field">
+          <label for="translateService">Online fallback</label>
+          <select id="translateService">
+            <option value="off">Off — on-device only</option>
+            <option value="mymemory">MyMemory (free, no key, 5 000 chars/day)</option>
+            <option value="libre">LibreTranslate (own instance or URL)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="sourceLang">Source language <span class="hint">ISO code, or <code>auto</code> (detected from the script)</span></label>
+          <input type="text" id="sourceLang" placeholder="auto" spellcheck="false">
+        </div>
+      </div>
+      <div class="only-mymemory">
+        <div class="field">
+          <label for="translateEmail">Contact e-mail for MyMemory <span class="hint">optional — raises the free quota to 50 000 chars/day</span></label>
+          <input type="text" id="translateEmail" placeholder="you@example.com" autocomplete="off">
+        </div>
+      </div>
+      <div class="only-libre">
+        <div class="grid-2">
+          <div class="field">
+            <label for="libreUrl">LibreTranslate URL</label>
+            <input type="text" id="libreUrl" placeholder="https://translate.example.com" spellcheck="false">
+          </div>
+          <div class="field">
+            <label for="libreKey">API key <span class="hint">if the instance requires one</span></label>
+            <input type="password" id="libreKey" autocomplete="off">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
       <h2>Internal note on the ticket</h2>
       <div class="switch-row" style="margin-bottom:12px">
         <label class="switch"><input type="checkbox" id="postNote"><span class="track"></span>After creating the issue, post an internal note with the link (on by default in the popup)</label>

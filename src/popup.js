@@ -168,20 +168,44 @@ function wireDescriptionToggle() {
 // exists. A subject in a non-Latin script gives an empty slug — say so.
 function wireBranchField(settings, ticket, meta) {
   const cb = $('createMr');
+  const hint = (text, kind = '') => { $('branchHint').textContent = text; $('branchHint').className = `hint ${kind}`; };
+  const nameFor = (subject) =>
+    sanitizeBranch(renderTemplate(settings.branchTemplate, { ...ticket, subject }, { extra: { iid: '{{iid}}' } }));
+  const needsEnglish = !slugify(ticket.subject);
   cb.checked = !!settings.createMr;
-  const prefill = () => {
-    if ($('branch').value) return;
-    const name = renderTemplate(settings.branchTemplate, ticket, { extra: { iid: '{{iid}}' } });
-    $('branch').value = sanitizeBranch(name);
-    if (!slugify(ticket.subject)) {
-      $('branchHint').textContent = 'subject is not in Latin script — add a short English description';
-      $('branchHint').classList.add('warn');
+
+  // Translate the subject and rebuild the name from it. Never silent: the
+  // result lands in the editable field and the hint names the engine.
+  const suggest = async () => {
+    $('suggestBranch').disabled = true;
+    hint('translating…');
+    try {
+      const r = await suggestEnglish(ticket.subject, settings, (s) => hint(s));
+      $('branch').value = nameFor(r.text);
+      hint(`"${r.text}" · via ${r.engine} — edit as you like`, 'ok');
+    } catch (e) {
+      hint(`could not translate: ${e.message}`, 'warn');
+    } finally {
+      $('suggestBranch').disabled = false;
     }
+  };
+
+  let prefilled = false;
+  const prefill = async () => {
+    if (prefilled) return;
+    prefilled = true;
+    $('branch').value = nameFor(ticket.subject);
+    if (!needsEnglish) return;
+    hint('subject is not in Latin script — click "Suggest English name" or type a short description', 'warn');
+    // On-device model already present? Then suggest right away (offline, private).
+    const src = settings.sourceLang !== 'auto' ? settings.sourceLang : detectLang(ticket.subject);
+    if (await builtinReady(src)) suggest();
   };
   const sync = () => { show('branchField', cb.checked); if (cb.checked) prefill(); };
   cb.addEventListener('change', sync);
+  $('suggestBranch').addEventListener('click', (e) => { e.preventDefault(); suggest(); });
   $('branch').addEventListener('blur', () => { $('branch').value = sanitizeBranch($('branch').value); });
-  $('branchHint').textContent = `from the default branch · draft ${meta.mr}`;
+  hint(`from the default branch · draft ${meta.mr}`);
   sync();
 }
 

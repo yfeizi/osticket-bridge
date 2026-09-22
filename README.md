@@ -65,11 +65,37 @@ Until it is published in a store, load it unpacked:
    from osTicket's *Assigned To*, labels are the project's existing labels.
 3. Keep **Upload files** and **Post internal note** on as needed.
 4. Optionally turn on **Create branch and draft merge request**: the branch
-   name is prefilled as `ticket-<number>-<english-slug>` and can be edited
-   (subjects in non-Latin scripts give just `ticket-<number>` — add a few
-   English words). The branch is cut from the default branch and the draft
-   MR/PR's description says `Closes #<issue>`, so merging closes the issue.
+   name is prefilled as `ticket-<number>-<english-slug>` and can be edited.
+   For subjects in other scripts (Arabic, Persian, …) click **✨ Suggest
+   English name** — see below — or type a few English words. The branch is cut
+   from the default branch and the draft MR/PR's description says
+   `Closes #<issue>`, so merging closes the issue.
 5. **Create issue**. The result card lists every step with links.
+
+### English branch names for non-Latin subjects
+
+`{{slug}}` only keeps ASCII words, so an Arabic or Persian subject would give a
+bare `ticket-370140`. **Suggest English name** translates the subject and
+rebuilds the name from the translation (`ticket-370140-this-id-is-incorrect-and-does`),
+trying, in order:
+
+1. **Chrome's on-device translator** (Chrome 138+ — `Translator` /
+   `LanguageDetector` APIs). Offline, free, nothing leaves the machine. The
+   language model is downloaded once per language pair (the first click may
+   take a few seconds). If the model is already installed, the suggestion is
+   made automatically when the popup opens. Not available in Opera yet.
+2. The **online fallback** chosen in Settings, off by default:
+   - **MyMemory** — free, no key, 5 000 characters/day (50 000 with a contact
+     e-mail). The ticket subject is sent to `api.mymemory.translated.net`.
+   - **LibreTranslate** — any instance URL (self-hosted keeps the data yours),
+     optional API key.
+   The browser asks for that host's permission when you save the setting.
+3. Otherwise the field stays `ticket-<number>` for you to complete.
+
+The suggestion is never applied silently: it goes into the editable field and
+the hint shows the translation and which engine produced it. The source
+language is detected from the script (Persian vs Arabic by their distinct
+letters) and can be forced in Settings.
 
 ## Permissions & privacy
 
@@ -77,7 +103,7 @@ Until it is published in a store, load it unpacked:
 |---|---|
 | `activeTab`, `scripting` | Read the ticket page **only when you click the icon**, on that tab only. No access to other sites or to osTicket in the background. |
 | `storage` | Keep your settings and token in the browser's extension storage (local, unencrypted, per profile — use a token with a sensible expiry). |
-| optional host permission | Requested at runtime for the **one API origin you configure** (your GitLab host or `api.github.com`), so the service worker can call it. |
+| optional host permission | Requested at runtime for the **API origin you configure** (your GitLab host or `api.github.com`) and, only if you enable an online translation fallback, for that service's host. |
 
 Ticket data is sent only to the tracker you configure. Attachments are
 downloaded through your osTicket session in the page and uploaded to that
@@ -143,7 +169,8 @@ src/content.js     osTicket page: scrape ticket, fetch files, post note
 src/background.js  service worker with one provider object per tracker (gitlab, github)
 src/popup.*        review-and-create UI
 src/options.*      settings page
-src/settings.js    defaults + template rendering (shared)
+src/settings.js    defaults, template rendering, slug/branch/language helpers (shared)
+src/translate.js   English branch-name suggestions (on-device first, then online)
 src/ui.css         design tokens and components (shared)
 icons/             toolbar icons
 ```

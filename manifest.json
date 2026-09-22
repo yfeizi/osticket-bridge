@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "osTicket → GitLab / GitHub Issue",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "Create a GitLab or GitHub issue — with attachments and a link-back note — from the osTicket ticket you are viewing.",
   "icons": {
     "16": "icons/icon16.png",

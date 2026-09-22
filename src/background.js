@@ -258,7 +258,48 @@ async function uploadAttachments(p, settings, description, files) {
   return { description, failures };
 }
 
+// ---------- online translation (branch-name suggestions) ----------
+
+const MYMEMORY = 'https://api.mymemory.translated.net';
+
+async function translateOnline(settings, text, source) {
+  if (settings.translateService === 'mymemory') {
+    await ensureHostPermission(MYMEMORY);
+    if (!source || source === 'auto') throw new Error('MyMemory needs a source language — set it in Settings.');
+    const q = new URLSearchParams({ q: text, langpair: `${source}|en` });
+    if (settings.translateEmail) q.set('de', settings.translateEmail);
+    const res = await fetch(`${MYMEMORY}/get?${q}`);
+    const data = await res.json().catch(() => ({}));
+    const out = data.responseData && data.responseData.translatedText;
+    if (!res.ok || Number(data.responseStatus) >= 400 || !out || /MYMEMORY WARNING/i.test(out)) {
+      throw new Error(`MyMemory: ${data.responseDetails || out || res.status}`);
+    }
+    return { text: out, engine: 'MyMemory' };
+  }
+
+  if (settings.translateService === 'libre') {
+    const base = (settings.libreUrl || '').replace(/\/+$/, '');
+    if (!base) throw new Error('LibreTranslate URL is not set.');
+    await ensureHostPermission(base);
+    const res = await fetch(`${base}/translate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        q: text, source: source && source !== 'auto' ? source : 'auto', target: 'en', format: 'text',
+        ...(settings.libreKey ? { api_key: settings.libreKey } : {}),
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.translatedText) throw new Error(`LibreTranslate: ${data.error || res.status}`);
+    return { text: data.translatedText, engine: 'LibreTranslate' };
+  }
+
+  throw new Error('Online translation is off (Settings → English branch names).');
+}
+
 const handlers = {
+  TRANSLATE: async ({ settings, text, source }) => ({ ok: true, ...(await translateOnline(settings, text, source)) }),
+
   // Verify token + project from the options page.
   TEST_CONNECTION: async ({ settings }) => {
     const r = await providerOf(settings).test(settings);

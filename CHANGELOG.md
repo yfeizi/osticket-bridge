@@ -3,6 +3,17 @@
 All notable changes to this project are documented here. Versions follow
 `manifest.json`.
 
+## 1.7.0 — 2026-09-22
+- **Suggest English name** for branches when the subject is not in Latin
+  script. Chrome's on-device Translator/LanguageDetector (Chrome 138+) is used
+  first — offline and private — and runs automatically when its model is
+  already installed. Optional online fallback in Settings: MyMemory (free, no
+  key) or a LibreTranslate instance; off by default, and the host permission is
+  requested only when enabled. The suggestion always lands in the editable field
+  with the engine named in the hint.
+- Script-based source-language detection (fa/ar/ru/he/th/ja/ko/zh) with an
+  override in Settings.
+
 ## 1.6.0 — 2026-09-22
 - Optional branch + draft merge request / pull request per issue. Off by
   default; toggle it in the popup (or make it the default in Settings). The

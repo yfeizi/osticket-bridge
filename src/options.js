@@ -3,6 +3,7 @@ const FIELDS = [
   'gitlabUrl', 'project', 'token',
   'githubApiUrl', 'githubRepo', 'githubToken',
   'labels', 'titleTemplate', 'descriptionTemplate', 'branchTemplate', 'noteTitle', 'noteBody',
+  'translateService', 'sourceLang', 'translateEmail', 'libreUrl', 'libreKey',
 ];
 const CHECKS = ['confidential', 'quoteMessage', 'postNote', 'createMr'];
 
@@ -21,6 +22,7 @@ function fill(s) {
   const radio = document.querySelector(`input[name=provider][value="${s.provider}"]`) || document.querySelector('input[name=provider]');
   radio.checked = true;
   applyProvider();
+  applyTranslateService();
 }
 
 // Show only the fields that belong to the selected tracker.
@@ -31,6 +33,14 @@ function applyProvider() {
   document.querySelectorAll('.only-github').forEach((el) => el.classList.toggle('hidden', p !== 'github'));
 }
 document.querySelectorAll('input[name=provider]').forEach((r) => r.addEventListener('change', applyProvider));
+
+// Show only the fields of the selected translation service.
+function applyTranslateService() {
+  const s = $('translateService').value;
+  document.querySelectorAll('.only-mymemory').forEach((el) => el.classList.toggle('hidden', s !== 'mymemory'));
+  document.querySelectorAll('.only-libre').forEach((el) => el.classList.toggle('hidden', s !== 'libre'));
+}
+$('translateService').addEventListener('change', applyTranslateService);
 
 function notice(kind, html) {
   const el = $('result');
@@ -43,11 +53,17 @@ loadSettings().then(fill);
 // Ask the browser for access to the configured API origin. Must be called
 // synchronously from a user gesture (click), so no `await` before it.
 function requestApiPermission(settings) {
-  let origin;
-  try { origin = new URL(providerBaseUrl(settings)).origin + '/*'; }
+  const origins = [];
+  try { origins.push(new URL(providerBaseUrl(settings)).origin + '/*'); }
   catch { return Promise.resolve({ ok: false, error: 'Invalid API URL.' }); }
-  return chrome.permissions.request({ origins: [origin] })
-    .then((granted) => (granted ? { ok: true } : { ok: false, error: `Access to ${origin} was not granted.` }))
+  // The online translation service, if one is selected, needs its origin too.
+  if (settings.translateService === 'mymemory') origins.push('https://api.mymemory.translated.net/*');
+  if (settings.translateService === 'libre' && settings.libreUrl) {
+    try { origins.push(new URL(settings.libreUrl).origin + '/*'); }
+    catch { return Promise.resolve({ ok: false, error: 'Invalid LibreTranslate URL.' }); }
+  }
+  return chrome.permissions.request({ origins })
+    .then((granted) => (granted ? { ok: true } : { ok: false, error: `Access to ${origins.join(', ')} was not granted.` }))
     .catch((e) => ({ ok: false, error: e.message || String(e) }));
 }
 
