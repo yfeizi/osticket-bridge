@@ -83,13 +83,21 @@ trying, in order:
    `LanguageDetector` APIs). Offline, free, nothing leaves the machine. The
    language model is downloaded once per language pair (the first click may
    take a few seconds). If the model is already installed, the suggestion is
-   made automatically when the popup opens. Not available in Opera yet.
+   made automatically when the popup opens. **Chrome only** for now: Edge,
+   Opera and Brave do not expose this API (check with `typeof Translator` in
+   DevTools — the extension detects it at runtime and will use it as soon as a
+   browser ships it).
 2. The **online fallback** chosen in Settings, off by default:
    - **MyMemory** — free, no key, 5 000 characters/day (50 000 with a contact
      e-mail). The ticket subject is sent to `api.mymemory.translated.net`.
    - **LibreTranslate** — any instance URL (self-hosted keeps the data yours),
-     optional API key.
+     optional API key. A minimal in-house instance:
+     ```bash
+     docker run -d --name libretranslate -p 5000:5000 libretranslate/libretranslate --load-only ar,fa,en
+     ```
    The browser asks for that host's permission when you save the setting.
+   Teams on Edge or Opera should pick one of these, since those browsers have
+   no on-device translator.
 3. Otherwise the field stays `ticket-<number>` for you to complete.
 
 The suggestion is never applied silently: it goes into the editable field and
