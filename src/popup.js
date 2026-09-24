@@ -32,8 +32,16 @@ async function fetchFiles(tab, attachments, onProgress) {
   for (const [i, a] of attachments.entries()) {
     onProgress(`Fetching ${a.name} (${i + 1}/${attachments.length})…`);
     const r = await askTab(tab, { type: 'FETCH_FILE', url: a.url });
-    if (r && r.ok) files.push({ ...a, base64: r.base64, type: r.type });
-    else failures.push(`${a.name}: ${r ? r.error : 'no response'}`);
+    if (r && r.ok) { files.push({ ...a, base64: r.base64, type: r.type }); continue; }
+    const error = r ? r.error : 'no response';
+    failures.push(`${a.name}: ${error}`);
+    // The session died mid-run: every remaining file would fail the same way,
+    // and a login page must never be uploaded as an attachment.
+    if (/session expired/i.test(error)) {
+      const rest = attachments.length - i - 1;
+      if (rest) failures.push(`${rest} more file(s) skipped — session expired`);
+      break;
+    }
   }
   return { files, failures };
 }
@@ -129,7 +137,7 @@ function setProgress(text) {
   $('progress').innerHTML = text ? `<span class="spinner"></span><span>${esc(text)}</span>` : '';
 }
 
-function showResult(kind, title, body, steps) {
+function showResult(kind, title, body, steps, actions) {
   const icon = { ok: '🎉', error: '💥', warn: '⚠️' }[kind];
   $('result').innerHTML = `
     <div class="card result-card">
@@ -137,6 +145,7 @@ function showResult(kind, title, body, steps) {
       <h3>${title}</h3>
       <p>${body || ''}</p>
       ${steps ? `<div class="steps">${steps.map((s) => `<div class="${s.kind}">${s.kind === 'ok' ? '✔' : s.kind === 'warn' ? '⚠' : '✖'} ${s.text}</div>`).join('')}</div>` : ''}
+      ${actions ? `<div class="actions">${actions}</div>` : ''}
     </div>`;
   show('result');
 }
@@ -295,10 +304,41 @@ async function init() {
     });
   }
 
+  // The osTicket session can expire while the popup is open. Check before
+  // anything is created: an expired session serves the login page with HTTP
+  // 200, which would otherwise be uploaded as the attachments' content.
+  async function sessionBlocks() {
+    if (!$('upload').checked && !$('postNote').checked) return false;
+    setProgress('Checking osTicket session…');
+    const r = await askTab(tab, { type: 'CHECK_SESSION' }).catch(() => null);
+    if (r && r.valid) return false;
+    setProgress('');
+    showResult('warn', 'osTicket session expired',
+      'Sign in to osTicket again, then reopen this popup. Nothing has been created yet.',
+      null,
+      `<a class="btn primary" href="${esc(new URL(ticket.url).origin)}/scp/login.php" target="_blank">Open osTicket login</a>
+       <button class="btn" id="skipOsticket">Create issue without files &amp; note</button>`);
+    $('skipOsticket').addEventListener('click', () => {
+      $('upload').checked = false;
+      $('postNote').checked = false;
+      show('result', false);
+      show('form'); show('footer');
+      $('create').click();
+    });
+    show('form', false); show('footer', false);
+    return true;
+  }
+
   $('create').addEventListener('click', async () => {
     $('create').disabled = true;
     $('create').querySelector('span').textContent = 'Working…';
     const steps = [];
+
+    if (await sessionBlocks()) {
+      $('create').disabled = false;
+      $('create').querySelector('span').textContent = 'Create issue';
+      return;
+    }
 
     // 1. attachments
     let files = [];

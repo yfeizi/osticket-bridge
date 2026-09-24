@@ -3,6 +3,18 @@
 All notable changes to this project are documented here. Versions follow
 `manifest.json`.
 
+## 1.7.1 — 2026-09-24
+- **Fix: corrupted attachments when the osTicket session expired.** osTicket
+  answers an expired session with HTTP 200 and the login page, so that HTML was
+  base64-encoded and uploaded as the attachment's content (broken images in the
+  issue), and the internal note silently did nothing.
+  - Attachment downloads now reject any `text/html` or login-page response.
+  - The session is checked before anything is created; the popup offers to sign
+    in again or to create the issue without files and note.
+  - A session that dies mid-run aborts the remaining downloads instead of
+    uploading more login pages, and says how many files were skipped.
+  - Posting the internal note detects the login page too.
+
 ## 1.7.0 — 2026-09-22
 - **Suggest English name** for branches when the subject is not in Latin
   script. Chrome's on-device Translator/LanguageDetector (Chrome 138+) is used

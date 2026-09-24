@@ -65,3 +65,4 @@ footer {
 .branch-row input { flex: 1; min-width: 0; }
 .btn.small { padding: 6px 10px; font-size: 12px; white-space: nowrap; }
 .branch-field .hint.ok { color: var(--ok); }
+.result-card .actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }

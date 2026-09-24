@@ -156,10 +156,30 @@
   }
 
   // Fetch a ticket file as base64 (same-origin => session cookie is sent).
+  // osTicket does not answer an expired session with 401 — it returns HTTP 200
+  // and the login page. Without this check that HTML would be uploaded as the
+  // attachment's content.
+  const SESSION_EXPIRED = 'osTicket session expired — sign in again and retry';
+
+  function isLoginResponse(res, text) {
+    if (/\/login\.php/i.test(res.url || '')) return true;
+    if (typeof text === 'string') {
+      return /name=["']?(userid|passwd)["']?/i.test(text) || /<form[^>]+action=["'][^"']*login\.php/i.test(text);
+    }
+    return false;
+  }
+
   async function fetchFile(url) {
     const res = await fetch(url, { credentials: 'include' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const type = res.headers.get('content-type') || '';
+    // file.php always serves a real media type; text/html means we were bounced
+    // to the login page (or an error page), never the attachment itself.
+    if (/^text\/html/i.test(type) || isLoginResponse(res)) {
+      throw new Error(SESSION_EXPIRED);
+    }
     const blob = await res.blob();
+    if (!blob.size) throw new Error('empty response');
     const base64 = await new Promise((resolve, reject) => {
       const r = new FileReader();
       r.onload = () => resolve(String(r.result).split(',')[1]);
@@ -173,13 +193,13 @@
     if (!msg) return false;
     if (msg.type === 'GET_TICKET') {
       try { sendResponse(collectTicket()); }
-      catch (e) { sendResponse({ ok: false, error: String(e) }); }
+      catch (e) { sendResponse({ ok: false, error: e.message || String(e) }); }
       return false;
     }
     if (msg.type === 'FETCH_FILE') {
       fetchFile(msg.url)
         .then(sendResponse)
-        .catch((e) => sendResponse({ ok: false, error: String(e) }));
+        .catch((e) => sendResponse({ ok: false, error: e.message || String(e) }));
       return true; // async
     }
     if (msg.type === 'POST_NOTE') {
@@ -188,8 +208,23 @@
         .catch((e) => sendResponse({ ok: false, error: e.message || String(e) }));
       return true; // async
     }
+    if (msg.type === 'CHECK_SESSION') {
+      checkSession()
+        .then(sendResponse)
+        .catch((e) => sendResponse({ ok: false, valid: false, error: e.message || String(e) }));
+      return true; // async
+    }
     return false;
   });
+
+  // Cheap probe before we touch attachments or post a note: re-request the
+  // ticket page and see whether osTicket still recognises the session.
+  async function checkSession() {
+    const res = await fetch(location.href.split('#')[0], { credentials: 'include', cache: 'no-store' });
+    const text = await res.text();
+    const valid = res.ok && !isLoginResponse(res, text);
+    return { ok: true, valid, error: valid ? null : SESSION_EXPIRED };
+  }
 
   // Post an internal note by re-submitting the page's own "Post Internal Note"
   // form (keeps the CSRF token, ticket id and current status untouched).
@@ -206,6 +241,8 @@
     const res = await fetch(form.action, { method: 'POST', body: fd, credentials: 'include' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const text = await res.text();
+    // An expired session answers the POST with the login page, status 200.
+    if (isLoginResponse(res, text)) throw new Error(SESSION_EXPIRED);
     const doc = new DOMParser().parseFromString(text, 'text/html');
     const err = doc.querySelector('#msg_error');
     if (err && err.textContent.trim()) throw new Error(err.textContent.trim());
