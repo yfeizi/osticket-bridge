@@ -8,8 +8,11 @@ GitHub issue** in one click:
   original message and requester details), **assignee** and **labels**
 - **uploads the ticket's screenshots and attachments** into the issue, so it is
   self-contained (osTicket file links are signed and expire)
+- optional **start date, estimate and due date**, with the due date derived
+  from the estimate over working days
 - optionally **creates a branch and a draft merge request / pull request** for
-  the issue, with an editable branch name derived from the subject
+  the issue, with an editable branch name derived from the subject and the
+  issue's labels carried over
 - **posts an internal note** with the issue and MR links back on the ticket
 - warns you if an issue already references the ticket number
 - works with gitlab.com, self-hosted GitLab, github.com and GitHub Enterprise;
@@ -46,7 +49,9 @@ Until it is published in a store, load it unpacked:
 4. Click **Test connection**. The browser asks once for permission to access
    that API host; then the page reports the project, labels, assignees and
    token user.
-5. Optionally adjust default labels and the title / description / note templates.
+5. Optionally adjust default labels, the schedule defaults (default estimate,
+   hours per day, whether the row is shown), the labels to put on the merge
+   request, and the title / description / branch / note templates.
 6. **Save settings**.
 
 ### Feature matrix
@@ -57,20 +62,29 @@ Until it is published in a store, load it unpacked:
 | Upload attachments / screenshots into the issue | ✔ | ✖ — the GitHub REST API has no attachment upload endpoint; the original osTicket links are kept |
 | Confidential issues | ✔ | ✖ — not a GitHub concept |
 | Branch + draft merge/pull request | ✔ MR opened with no commits | ✔ an empty commit is added first (a PR needs one); draft falls back to a regular PR on plans without drafts |
+| Labels on the MR/PR | ✔ set when the MR is created | ✔ applied right after, since `POST /pulls` ignores labels |
+| Estimate on the issue | ✔ native time tracking | ✖ no such field — written into the description |
+| Due date on the issue | ✔ native `due_date` | ✖ no such field — written into the description |
+| Start date on the issue | ✖ GitLab has it on epics only — written into the description | ✖ written into the description |
 
 ## Use
 
 1. Open a ticket in the osTicket **staff panel** (`/scp/tickets.php?id=…`).
 2. Click the extension icon. Review the prefilled issue: assignee is matched
    from osTicket's *Assigned To*, labels are the project's existing labels.
-3. Keep **Upload files** and **Post internal note** on as needed.
-4. Optionally turn on **Create branch and draft merge request**: the branch
+3. Optionally set a **start date** and an **estimate** (`2d 4h`, `90m`, `1w`, or
+   a plain number for hours). The **due date** is filled in from start +
+   estimate counting working days, and you can override it. Leave the fields
+   empty to set nothing; the whole row can be hidden in Settings.
+4. Keep **Upload files** and **Post internal note** on as needed.
+5. Optionally turn on **Create branch and draft merge request**: the branch
    name is prefilled as `ticket-<number>-<english-slug>` and can be edited.
    For subjects in other scripts (Arabic, Persian, …) click **✨ Suggest
    English name** — see below — or type a few English words. The branch is cut
    from the default branch and the draft MR/PR's description says
-   `Closes #<issue>`, so merging closes the issue.
-5. **Create issue**. The result card lists every step with links.
+   `Closes #<issue>`, so merging closes the issue. The MR/PR gets the issue's
+   labels unless you untick that (default changeable in Settings).
+6. **Create issue**. The result card lists every step with links.
 
 ### English branch names for non-Latin subjects
 
@@ -157,7 +171,17 @@ osTicket tab ──(activeTab)──► content.js   reads DOM, fetches files, p
   Note* form (CSRF token and ticket id included), so it appears exactly as if you
   typed it.
 - Labels are always taken from the tracker (GitLab: project + ancestor groups), so the
-  extension never creates new labels by accident.
+  extension never creates new labels by accident. The same names are applied to
+  the merge request — on GitHub in a second call, since `POST /pulls` drops
+  both labels and assignees.
+- Schedule values are set natively where the tracker has a field for them
+  (GitLab: `POST /issues/:iid/time_estimate` and `due_date`) and appended to the
+  description otherwise, so nothing is silently lost. `PROVIDERS` in
+  `settings.js` declares which fields each tracker supports and drives both the
+  hints in the popup and that fallback.
+- An expired osTicket session returns the login page with HTTP 200, so
+  attachment downloads reject `text/html` responses and the session is probed
+  before anything is created.
 
 ## Compatibility
 
@@ -177,7 +201,9 @@ src/content.js     osTicket page: scrape ticket, fetch files, post note
 src/background.js  service worker with one provider object per tracker (gitlab, github)
 src/popup.*        review-and-create UI
 src/options.*      settings page
-src/settings.js    defaults, template rendering, slug/branch/language helpers (shared)
+src/settings.js    defaults, provider capabilities, template rendering, slug/branch/
+                   duration/language helpers — shared by both pages and, via
+                   importScripts, by the service worker
 src/translate.js   English branch-name suggestions (on-device first, then online)
 src/ui.css         design tokens and components (shared)
 icons/             toolbar icons

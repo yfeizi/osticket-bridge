@@ -117,6 +117,26 @@
     </section>
 
     <section class="card">
+      <h2>Schedule</h2>
+      <div class="switch-row" style="margin-bottom:12px">
+        <label class="switch"><input type="checkbox" id="showSchedule"><span class="track"></span>Show start date, estimate and due date in the popup</label>
+        <label class="switch"><input type="checkbox" id="startToday"><span class="track"></span>Prefill the start date with today</label>
+        <label class="switch"><input type="checkbox" id="dueFromEstimate"><span class="track"></span>Derive the due date from start date + estimate (working days)</label>
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label for="defaultEstimate">Default estimate <span class="hint">e.g. <code>2d 4h</code> — leave empty for none</span></label>
+          <input type="text" id="defaultEstimate" spellcheck="false" placeholder="2d 4h">
+        </div>
+        <div class="field">
+          <label for="hoursPerDay">Hours per day <span class="hint">how <code>1d</code> converts to hours</span></label>
+          <input type="text" id="hoursPerDay" spellcheck="false" placeholder="8">
+        </div>
+      </div>
+      <p class="muted" style="margin:6px 0 0">GitLab stores the estimate (time tracking) and the due date on the issue itself. GitHub issues have neither field, so those values are appended to the issue description. Neither tracker has a start date on issues, so it always goes into the description.</p>
+    </section>
+
+    <section class="card">
       <h2>Branch &amp; draft merge / pull request</h2>
       <div class="switch-row" style="margin-bottom:12px">
         <label class="switch"><input type="checkbox" id="createMr"><span class="track"></span>Turn on "Create branch and draft merge request" by default in the popup</label>
@@ -125,6 +145,14 @@
         <label for="branchTemplate">Branch name template <span class="hint"><code>{{slug}}</code> = English words of the subject · <code>{{iid}}</code> = issue number · always editable in the popup</span></label>
         <input type="text" id="branchTemplate" spellcheck="false">
         <p class="muted" style="margin:6px 0 0">The branch is created from the project's default branch; the merge request is opened as a draft with "Closes #issue" in its description. On GitHub an empty commit is added because a pull request cannot be opened on an identical branch.</p>
+      </div>
+      <div class="field">
+        <label for="mrLabels">Labels on the merge / pull request</label>
+        <select id="mrLabels">
+          <option value="same">Same labels as the issue</option>
+          <option value="none">No labels</option>
+        </select>
+        <p class="muted" style="margin:6px 0 0">Can be overridden per ticket in the popup. On GitHub the labels are applied in a second call, because <code>POST /pulls</code> ignores them.</p>
       </div>
     </section>
 

@@ -66,3 +66,6 @@ footer {
 .btn.small { padding: 6px 10px; font-size: 12px; white-space: nowrap; }
 .branch-field .hint.ok { color: var(--ok); }
 .result-card .actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
+#scheduleRow .hint { font-size: 11px; }
+#scheduleRow .hint.warn { color: var(--warn); }
+#scheduleRow .hint.ok { color: var(--ok); }

@@ -3,6 +3,20 @@
 All notable changes to this project are documented here. Versions follow
 `manifest.json`.
 
+## 1.8.0 — 2026-11-10
+- **Start date, estimate and due date on the issue.** The popup gained a
+  schedule row; the due date is derived from start date + estimate over working
+  days and stays editable. GitLab stores the estimate (time tracking) and the
+  due date natively; whatever a tracker has no field for — always the start
+  date, and everything on GitHub — is appended to the issue description.
+  Durations accept `2d 4h`, `90m`, `1w`, or a bare number as hours; the working
+  day length is configurable.
+- **Labels on the merge / pull request.** GitLab already passed them; GitHub
+  now applies them in a follow-up call, because `POST /pulls` ignores labels.
+  Default is the issue's labels, switchable per ticket in the popup and as a
+  default in Settings.
+- The service worker now shares `settings.js` (via `importScripts`).
+
 ## 1.7.1 — 2026-09-24
 - **Fix: corrupted attachments when the osTicket session expired.** osTicket
   answers an expired session with HTTP 200 and the login page, so that HTML was

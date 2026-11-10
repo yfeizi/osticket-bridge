@@ -60,6 +60,21 @@
             <label class="switch" style="margin-top:8px"><input type="checkbox" id="confidential"><span class="track"></span>Confidential <span class="muted" id="confidentialHint"></span></label>
           </div>
         </div>
+        <div id="scheduleRow" class="grid-3">
+          <div class="field">
+            <label for="startDate">Start date</label>
+            <input type="date" id="startDate">
+          </div>
+          <div class="field">
+            <label for="estimate">Estimate <span class="hint" id="estimateHint">e.g. 2d 4h</span></label>
+            <input type="text" id="estimate" spellcheck="false" placeholder="2d 4h">
+          </div>
+          <div class="field">
+            <label for="dueDate">Due date <span class="hint" id="dueHint"></span></label>
+            <input type="date" id="dueDate">
+          </div>
+        </div>
+
         <div class="field">
           <label for="labelFilter">Labels <span class="hint" id="labelHint">loading…</span></label>
           <input type="text" id="labelFilter" placeholder="Filter labels…">
@@ -85,6 +100,7 @@
               <input type="text" id="branch" spellcheck="false" placeholder="ticket-123456-short-english-title">
               <button class="btn small" id="suggestBranch" title="Translate the subject to English and build the branch name from it">✨ Suggest English name</button>
             </div>
+            <label class="switch" style="margin-top:8px"><input type="checkbox" id="mrSameLabels"><span class="track"></span>Give the <span class="mr-word">merge request</span> the same labels <span class="muted" id="mrLabelsHint"></span></label>
           </div>
         </div>
       </section>

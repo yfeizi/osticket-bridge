@@ -172,6 +172,57 @@ function wireDescriptionToggle() {
   $('descPreview').addEventListener('click', open);
 }
 
+// Start date + estimate. The due date is derived from them (working days) but
+// stays editable; what the tracker cannot store natively is noted in the hints
+// and ends up in the issue description instead.
+function wireSchedule(settings, meta) {
+  if (!settings.showSchedule) { show('scheduleRow', false); return; }
+  if (settings.startToday) $('startDate').value = today();
+  $('estimate').value = settings.defaultEstimate || '';
+
+  const hoursPerDay = Number(settings.hoursPerDay) || 8;
+  const notes = [];
+  if (!meta.estimate) notes.push('estimate');
+  if (!meta.dueDate) notes.push('due date');
+  if (notes.length) $('dueHint').textContent = `${notes.join(' & ')} go in the description (${meta.label} has no field)`;
+  else $('dueHint').textContent = 'optional';
+
+  let dueEdited = false;
+  $('dueDate').addEventListener('input', () => { dueEdited = true; });
+
+  const refresh = () => {
+    const raw = $('estimate').value.trim();
+    const seconds = raw ? parseDuration(raw, hoursPerDay) : 0;
+    if (raw && seconds === null) {
+      $('estimateHint').textContent = 'not a duration — try 2d 4h';
+      $('estimateHint').className = 'hint warn';
+      return;
+    }
+    $('estimateHint').textContent = seconds ? `= ${formatDuration(seconds, hoursPerDay)}` : 'e.g. 2d 4h';
+    $('estimateHint').className = seconds ? 'hint ok' : 'hint';
+    if (!dueEdited && settings.dueFromEstimate) {
+      $('dueDate').value = dueFromEstimate($('startDate').value, seconds, hoursPerDay) || '';
+    }
+  };
+  $('estimate').addEventListener('input', refresh);
+  $('startDate').addEventListener('input', refresh);
+  refresh();
+}
+
+// What the create step sends; null when the row is hidden or all fields empty.
+function readSchedule(settings) {
+  if (!settings.showSchedule) return null;
+  const hoursPerDay = Number(settings.hoursPerDay) || 8;
+  const raw = $('estimate').value.trim();
+  const seconds = raw ? parseDuration(raw, hoursPerDay) : 0;
+  const schedule = {
+    startDate: $('startDate').value || '',
+    estimate: seconds ? formatDuration(seconds, hoursPerDay) : '',
+    dueDate: $('dueDate').value || '',
+  };
+  return schedule.startDate || schedule.estimate || schedule.dueDate ? schedule : null;
+}
+
 // Branch name: prefilled from the template (ticket number + English slug of the
 // subject), always editable. `{{iid}}` is left for substitution after the issue
 // exists. A subject in a non-Latin script gives an empty slug — say so.
@@ -212,6 +263,8 @@ function wireBranchField(settings, ticket, meta) {
   };
   const sync = () => { show('branchField', cb.checked); if (cb.checked) prefill(); };
   cb.addEventListener('change', sync);
+  $('mrSameLabels').checked = settings.mrLabels !== 'none';
+  document.querySelectorAll('.mr-word').forEach((el) => (el.textContent = meta.mr));
   $('suggestBranch').addEventListener('click', (e) => { e.preventDefault(); suggest(); });
   $('branch').addEventListener('blur', () => { $('branch').value = sanitizeBranch($('branch').value); });
   hint(`from the default branch · draft ${meta.mr}`);
@@ -264,6 +317,7 @@ async function init() {
   }
   if (meta.confidential) $('confidential').checked = !!settings.confidential;
   $('postNote').checked = !!settings.postNote;
+  wireSchedule(settings, meta);
   wireBranchField(settings, ticket, meta);
   show('form'); show('footer');
 
@@ -351,6 +405,7 @@ async function init() {
     // 2. issue
     setProgress(files.length ? `Uploading ${files.length} file(s) and creating issue…` : 'Creating issue…');
     const issueTitle = $('title').value.trim();
+    const schedule = readSchedule(settings);
     const r = await send({
       type: 'CREATE_ISSUE',
       settings,
@@ -361,6 +416,7 @@ async function init() {
         labels: selectedLabels(),
         assigneeId: $('assignee').value || null, // numeric id (GitLab) or login (GitHub)
         confidential: $('confidential').checked,
+        schedule,
       },
     });
     if (!r || !r.ok) {
@@ -371,6 +427,18 @@ async function init() {
       return;
     }
     steps.push({ kind: 'ok', text: `Issue <a href="${r.url}" target="_blank">#${r.iid}</a> created` });
+    if (schedule) {
+      const bits = [];
+      if (schedule.startDate) bits.push(`start ${schedule.startDate}`);
+      if (schedule.estimate) bits.push(`estimate ${schedule.estimate}`);
+      if (schedule.dueDate) bits.push(`due ${schedule.dueDate}`);
+      const native = [meta.estimate && 'estimate', meta.dueDate && 'due date'].filter(Boolean);
+      steps.push({
+        kind: 'ok',
+        text: `Schedule set: ${esc(bits.join(', '))}${native.length < 3 ? ` <span class="muted">(${native.length ? `${native.join(' & ')} native, rest` : 'all'} in the description)</span>` : ''}`,
+      });
+    }
+    (r.warnings || []).forEach((w) => steps.push({ kind: 'warn', text: esc(w) }));
     (r.failures || []).forEach((f) => steps.push({ kind: 'warn', text: `Upload failed, link kept: ${esc(f)}` }));
     if (files.length && !(r.failures || []).length) steps.push({ kind: 'ok', text: `${files.length} file(s) uploaded` });
 
@@ -386,11 +454,13 @@ async function init() {
         issue: { iid: r.iid, title: issueTitle },
         ticketUrl: ticket.url,
         assigneeId: $('assignee').value || null,
-        labels: selectedLabels(),
+        labels: $('mrSameLabels').checked ? selectedLabels() : '',
       });
       if (m && m.ok) {
         steps.push({ kind: 'ok', text: `Branch <a href="${m.branch.url}" target="_blank"><code>${esc(m.branch.name)}</code></a> created from <code>${esc(m.target)}</code>` });
-        steps.push({ kind: m.draft ? 'ok' : 'warn', text: `${m.draft ? 'Draft ' : ''}${meta.mr} <a href="${m.url}" target="_blank">${meta.mrRef}${m.iid}</a> created${m.draft ? '' : ' (draft not supported on this plan)'}` });
+        const mrLabels = (m.labels || []).map((l) => (typeof l === 'string' ? l : l.name));
+        steps.push({ kind: m.draft ? 'ok' : 'warn', text: `${m.draft ? 'Draft ' : ''}${meta.mr} <a href="${m.url}" target="_blank">${meta.mrRef}${m.iid}</a> created${mrLabels.length ? ` with ${esc(mrLabels.join(', '))}` : ''}${m.draft ? '' : ' (draft not supported on this plan)'}` });
+        (m.warnings || []).forEach((w) => steps.push({ kind: 'warn', text: `${meta.mrAbbr}: ${esc(w)}` }));
         mrHtml = `<p>Draft ${meta.mr}: <a href="${m.url}" target="_blank">${meta.mrRef}${m.iid}</a> (branch <code>${esc(m.branch.name)}</code>)</p>`;
       } else {
         steps.push({ kind: 'err', text: `Branch/${meta.mrAbbr} failed: ${esc(m ? m.error : 'no response')}` });

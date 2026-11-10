@@ -3,6 +3,10 @@
 //   test, search, labels, members, me, upload, createIssue
 // so the popup never needs to know which one is configured.
 
+// Shared defaults and helpers (providerMeta, scheduleMarkdown, …). Guarded so
+// the same file can be loaded directly in unit tests.
+if (typeof importScripts === 'function') importScripts('settings.js');
+
 // ---------- shared HTTP helpers ----------
 
 const trim = (s) => (s || '').trim().replace(/^\/|\/$/g, '');
@@ -99,6 +103,7 @@ const gitlab = {
     return up.url; // relative /uploads/<hash>/<file>, valid inside the project
   },
   async createIssue(s, issue) {
+    const sched = issue.schedule || {};
     const { data: c } = await call(this, s, `${this.project(s)}/issues`, {
       method: 'POST',
       body: {
@@ -107,9 +112,19 @@ const gitlab = {
         labels: issue.labels,
         assignee_ids: issue.assigneeId ? [Number(issue.assigneeId)] : [],
         confidential: !!issue.confidential,
+        ...(sched.dueDate ? { due_date: sched.dueDate } : {}),
       },
     });
-    return { iid: c.iid, url: c.web_url };
+    const warnings = [];
+    // Time tracking is its own endpoint, not a field on the issue.
+    if (sched.estimate) {
+      try {
+        await call(this, s, `${this.project(s)}/issues/${c.iid}/time_estimate?duration=${encodeURIComponent(sched.estimate)}`, { method: 'POST' });
+      } catch (e) {
+        warnings.push(`estimate not set: ${e.message}`);
+      }
+    }
+    return { iid: c.iid, url: c.web_url, warnings };
   },
   async defaultBranch(s) {
     const { data: p } = await call(this, s, this.project(s));
@@ -133,7 +148,7 @@ const gitlab = {
         remove_source_branch: true,
       },
     });
-    return { iid: m.iid, url: m.web_url, draft: true };
+    return { iid: m.iid, url: m.web_url, draft: true, labels: m.labels || [], warnings: [] };
   },
 };
 
@@ -193,7 +208,9 @@ const github = {
         assignees: issue.assigneeId ? [issue.assigneeId] : [],
       },
     });
-    return { iid: c.number, url: c.html_url };
+    // GitHub issues have no estimate or date fields, so the schedule was
+    // already written into the body by CREATE_ISSUE.
+    return { iid: c.number, url: c.html_url, warnings: [] };
   },
   async defaultBranch(s) {
     const { data: r } = await call(this, s, this.repo(s));
@@ -226,16 +243,24 @@ const github = {
       draft = false;
       pr = (await call(this, s, `${repo}/pulls`, { method: 'POST', body: { ...body, draft: false } })).data;
     }
-    // Assignees/labels live on the issue side of a PR; best effort.
+    // Assignees and labels live on the issue side of a PR — POST /pulls
+    // silently ignores both — so they are applied in follow-up calls.
+    const warnings = [];
     if (mr.assigneeId) {
-      await call(this, s, `${repo}/issues/${pr.number}/assignees`, { method: 'POST', body: { assignees: [mr.assigneeId] } }).catch(() => {});
+      await call(this, s, `${repo}/issues/${pr.number}/assignees`, { method: 'POST', body: { assignees: [mr.assigneeId] } })
+        .catch((e) => warnings.push(`assignee not set: ${e.message}`));
     }
-    return { iid: pr.number, url: pr.html_url, draft };
+    const labels = (mr.labels || '').split(',').map((l) => l.trim()).filter(Boolean);
+    if (labels.length) {
+      await call(this, s, `${repo}/issues/${pr.number}/labels`, { method: 'POST', body: { labels } })
+        .catch((e) => warnings.push(`labels not set: ${e.message}`));
+    }
+    return { iid: pr.number, url: pr.html_url, draft, labels, warnings };
   },
 };
 
-const PROVIDERS = { gitlab, github };
-const providerOf = (settings) => PROVIDERS[settings.provider] || gitlab;
+const IMPLS = { gitlab, github };
+const providerOf = (settings) => IMPLS[settings.provider] || gitlab;
 
 // ---------- orchestration ----------
 
@@ -329,7 +354,10 @@ const handlers = {
 
   CREATE_ISSUE: async ({ settings, issue, files = [] }) => {
     const p = providerOf(settings);
-    const { description, failures } = await uploadAttachments(p, settings, issue.description, files);
+    const meta = providerMeta(settings);
+    let { description, failures } = await uploadAttachments(p, settings, issue.description, files);
+    // Whatever this tracker has no field for goes into the description.
+    description += scheduleMarkdown(issue.schedule, meta);
     const created = await p.createIssue(settings, { ...issue, description });
     return { ok: true, ...created, failures };
   },
@@ -346,7 +374,7 @@ const handlers = {
       title: issue.title,
       description: `Closes #${issue.iid}\n\nosTicket: ${ticketUrl}`,
       assigneeId,
-      labels,
+      labels: settings.mrLabels === 'none' ? '' : labels,
     });
     return { ok: true, branch: created, target, ...mr };
   },

@@ -2,9 +2,21 @@
 
 // Static capabilities per issue tracker. The API-side implementation lives in
 // background.js; this table only drives what the UI offers.
+// `estimate`/`dueDate` say whether the tracker stores that natively on an
+// issue; what it cannot store is written into the description instead.
+// Neither tracker has a start date on issues (GitLab has it on epics only),
+// so `startDate` is false everywhere for now.
 const PROVIDERS = {
-  gitlab: { label: 'GitLab', uploads: true, confidential: true, mr: 'merge request', mrAbbr: 'MR', mrRef: '!' },
-  github: { label: 'GitHub', uploads: false, confidential: false, mr: 'pull request', mrAbbr: 'PR', mrRef: '#' },
+  gitlab: {
+    label: 'GitLab', uploads: true, confidential: true,
+    mr: 'merge request', mrAbbr: 'MR', mrRef: '!',
+    estimate: true, dueDate: true, startDate: false, mrLabels: true,
+  },
+  github: {
+    label: 'GitHub', uploads: false, confidential: false,
+    mr: 'pull request', mrAbbr: 'PR', mrRef: '#',
+    estimate: false, dueDate: false, startDate: false, mrLabels: true,
+  },
 };
 
 const DEFAULT_TEMPLATE = `## Support ticket #{{number}}
@@ -50,6 +62,14 @@ const DEFAULTS = {
   libreUrl: '',
   libreKey: '',
   sourceLang: 'auto',      // ISO code to force the source language, or "auto"
+  // Schedule (start date + estimate). Empty fields set nothing.
+  showSchedule: true,
+  defaultEstimate: '',
+  startToday: false,
+  dueFromEstimate: true,
+  hoursPerDay: 8,          // GitLab's own convention for turning hours into days
+  // Labels on the merge/pull request: same as the issue, or none.
+  mrLabels: 'same',        // same | none
   // Internal note
   postNote: true,
   noteTitle: '{{provider}} issue #{{iid}}',
@@ -68,6 +88,70 @@ function slugify(text, maxWords = 6) {
     .filter(Boolean)
     .slice(0, maxWords)
     .join('-');
+}
+
+// --- schedule helpers -------------------------------------------------------
+
+// "2d 4h", "90m", "1w" -> seconds, using GitLab's units (1w = 5d, 1d = 8h by
+// default). Returns null when the text is not a valid duration.
+function parseDuration(text, hoursPerDay = 8) {
+  const t = String(text || '').trim().toLowerCase();
+  if (!t) return null;
+  const unit = { mo: 0, w: 0, d: 0, h: 3600, m: 60, s: 1 };
+  unit.d = hoursPerDay * 3600;
+  unit.w = 5 * unit.d;
+  unit.mo = 4 * unit.w;
+  let total = 0;
+  let matched = false;
+  const re = /(\d+(?:\.\d+)?)\s*(mo|w|d|h|m|s)/g;
+  let m;
+  while ((m = re.exec(t))) {
+    total += parseFloat(m[1]) * unit[m[2]];
+    matched = true;
+  }
+  // A bare number is read as hours ("4" -> 4h), which is what people type.
+  if (!matched && /^\d+(\.\d+)?$/.test(t)) return parseFloat(t) * 3600;
+  if (!matched || /[^\dmowdhs.\s]/.test(t)) return null;
+  return total;
+}
+
+function formatDuration(seconds, hoursPerDay = 8) {
+  if (!seconds) return '';
+  const day = hoursPerDay * 3600;
+  const parts = [];
+  const take = (size, suffix) => {
+    const n = Math.floor(seconds / size);
+    if (n) { parts.push(`${n}${suffix}`); seconds -= n * size; }
+  };
+  take(5 * day, 'w'); take(day, 'd'); take(3600, 'h'); take(60, 'm');
+  return parts.join(' ');
+}
+
+const isoDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const today = () => isoDate(new Date());
+
+// Working days from a start date and an estimate, skipping Sat/Sun. A due
+// date is only derived when both a start date and a valid estimate are given.
+function dueFromEstimate(startDate, seconds, hoursPerDay = 8) {
+  if (!startDate || !seconds) return '';
+  const d = new Date(`${startDate}T00:00:00`);
+  if (isNaN(d)) return '';
+  let days = Math.max(1, Math.ceil(seconds / (hoursPerDay * 3600)));
+  while (days > 1) {
+    d.setDate(d.getDate() + 1);
+    if (d.getDay() !== 0 && d.getDay() !== 6) days--; // skip weekend
+  }
+  return isoDate(d);
+}
+
+// Markdown block for whatever the tracker cannot store on the issue itself.
+function scheduleMarkdown(schedule, meta) {
+  if (!schedule) return '';
+  const lines = [];
+  if (schedule.startDate && !meta.startDate) lines.push(`**Start date:** ${schedule.startDate}`);
+  if (schedule.estimate && !meta.estimate) lines.push(`**Estimate:** ${schedule.estimate}`);
+  if (schedule.dueDate && !meta.dueDate) lines.push(`**Due date:** ${schedule.dueDate}`);
+  return lines.length ? `\n\n---\n${lines.join('  \n')}\n` : '';
 }
 
 // Guess the source language from the script. Good enough to pick a MyMemory

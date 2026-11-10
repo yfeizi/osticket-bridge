@@ -144,3 +144,7 @@ label.switch { display: inline-flex; align-items: center; gap: 8px; cursor: poin
 .chip.on { color: #fff; border-color: transparent; }
 .chip.on .dot { background: #fff !important; }
 .chip:hover { filter: brightness(.96); }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+input[type=date] { width: 100%; padding: 7px 10px; font: inherit; color: var(--text);
+  background: var(--field); border: 1px solid var(--field-line); border-radius: 8px; }
+input[type=date]:focus { outline: none; border-color: var(--accent-2); box-shadow: 0 0 0 3px rgba(252,109,38,.2); }

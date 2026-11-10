@@ -4,8 +4,9 @@ const FIELDS = [
   'githubApiUrl', 'githubRepo', 'githubToken',
   'labels', 'titleTemplate', 'descriptionTemplate', 'branchTemplate', 'noteTitle', 'noteBody',
   'translateService', 'sourceLang', 'translateEmail', 'libreUrl', 'libreKey',
+  'defaultEstimate', 'hoursPerDay', 'mrLabels',
 ];
-const CHECKS = ['confidential', 'quoteMessage', 'postNote', 'createMr'];
+const CHECKS = ['confidential', 'quoteMessage', 'postNote', 'createMr', 'showSchedule', 'startToday', 'dueFromEstimate'];
 
 const selectedProvider = () => (document.querySelector('input[name=provider]:checked') || {}).value || 'gitlab';
 
